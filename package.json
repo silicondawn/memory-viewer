@@ -1,43 +1,47 @@
 {
-  "name": "memory-viewer",
-  "private": true,
-  "version": "0.0.0",
+  "name": "@silicondawn/memory-viewer",
+  "version": "1.0.0",
+  "description": "A beautiful web-based viewer for OpenClaw agent memory files. Browse, search, and edit Markdown files with a dark-themed UI.",
   "type": "module",
+  "license": "MIT",
+  "author": "Silicon Dawn",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/silicondawn/memory-viewer"
+  },
+  "keywords": ["openclaw", "memory", "markdown", "viewer", "agent"],
   "scripts": {
-    "dev": "concurrently \"npm run server\" \"vite\"",
-    "build": "tsc && vite build",
-    "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
-    "preview": "vite preview",
-    "server": "tsx server/index.ts"
+    "dev": "concurrently -n api,web -c blue,green \"npm run server:dev\" \"vite\"",
+    "build": "vite build",
+    "start": "node server/dist/index.js",
+    "server:dev": "tsx watch server/index.ts",
+    "server:build": "tsx server/index.ts",
+    "preview": "npm run build && npm start",
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "concurrently": "^9.2.1",
+    "chokidar": "^4.0.3",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-markdown": "^10.1.0",
-    "react-router-dom": "^7.13.0",
-    "remark-gfm": "^4.0.1"
+    "remark-gfm": "^4.0.1",
+    "ws": "^8.18.2"
   },
   "devDependencies": {
-    "@eslint/js": "^9.39.1",
     "@tailwindcss/vite": "^4.1.18",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^24.10.9",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",
+    "@types/ws": "^8.18.1",
     "@vitejs/plugin-react": "^5.1.1",
-    "eslint": "^9.39.1",
-    "eslint-plugin-react-hooks": "^7.0.1",
-    "eslint-plugin-react-refresh": "^0.4.24",
-    "globals": "^16.5.0",
+    "concurrently": "^9.2.1",
     "tailwindcss": "^4.1.18",
-    "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "~5.9.3",
-    "typescript-eslint": "^8.46.4",
     "vite": "^7.2.4"
   }
 }

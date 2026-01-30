@@ -1,9 +1,10 @@
-/** API 请求封装 */
-const BASE = 'http://localhost:3001';
+/** API client for Memory Viewer backend. */
+
+const BASE = "";
 
 export interface FileNode {
   name: string;
-  type: 'file' | 'dir';
+  type: "file" | "dir";
   path: string;
   children?: FileNode[];
 }
@@ -22,11 +23,17 @@ export interface SystemInfo {
   load: number[];
   platform: string;
   hostname: string;
+  totalFiles: number;
   todayMemory: {
     filename: string;
     snippet: string;
     length: number;
   } | null;
+}
+
+export interface SearchResult {
+  path: string;
+  matches: { line: number; text: string }[];
 }
 
 export async function fetchFiles(): Promise<FileNode[]> {
@@ -36,14 +43,14 @@ export async function fetchFiles(): Promise<FileNode[]> {
 
 export async function fetchFile(path: string): Promise<FileData> {
   const r = await fetch(`${BASE}/api/file?path=${encodeURIComponent(path)}`);
-  if (!r.ok) throw new Error('文件读取失败');
+  if (!r.ok) throw new Error("Failed to load file");
   return r.json();
 }
 
 export async function saveFile(path: string, content: string): Promise<{ ok: boolean; mtime: string }> {
   const r = await fetch(`${BASE}/api/file`, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path, content }),
   });
   return r.json();
@@ -51,5 +58,10 @@ export async function saveFile(path: string, content: string): Promise<{ ok: boo
 
 export async function fetchSystem(): Promise<SystemInfo> {
   const r = await fetch(`${BASE}/api/system`);
+  return r.json();
+}
+
+export async function searchFiles(query: string): Promise<SearchResult[]> {
+  const r = await fetch(`${BASE}/api/search?q=${encodeURIComponent(query)}`);
   return r.json();
 }

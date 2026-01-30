@@ -1,73 +1,99 @@
-# React + TypeScript + Vite
+# 📝 Memory Viewer
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A beautiful, dark-themed web UI for browsing and editing an AI agent's memory files. Built for [OpenClaw](https://openclaw.com) agents that store context in Markdown files.
 
-Currently, two official plugins are available:
+![Screenshot](./docs/screenshot.png)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Features
 
-## React Compiler
+- **📁 File Tree Sidebar** — Navigate all `.md` files in a collapsible tree
+- **📖 Markdown Rendering** — GitHub-flavored Markdown with syntax highlighting, tables, and more
+- **✏️ In-Browser Editing** — Edit files directly with Ctrl+S to save
+- **🔍 Full-Text Search** — Search across all memory files instantly (Ctrl+K)
+- **📊 System Dashboard** — Server uptime, memory usage, load averages, and today's memory summary
+- **🔄 Live Reload** — Files auto-refresh when changed on disk (via WebSocket)
+- **📱 Responsive** — Works on mobile with a slide-out sidebar
+- **🌙 Dark Theme** — Easy on the eyes, designed for always-on dashboards
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Quick Start
 
-## Expanding the ESLint configuration
+```bash
+# Clone
+git clone https://github.com/silicondawn/memory-viewer.git
+cd memory-viewer
 
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+# Install
+npm install
 
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+# Run (starts both API server and Vite dev server)
+npm run dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+Open [http://localhost:5173](http://localhost:5173) in your browser.
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+## Configuration
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Set environment variables to customize:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `3001` | API server port |
+| `WORKSPACE_DIR` | `~/clawd` | Root directory containing `.md` files |
+
+## Production
+
+```bash
+# Build the frontend
+npm run build
+
+# Start the production server (serves API + static files)
+PORT=8901 npm start
 ```
+
+The production server serves both the API and the built frontend from a single process.
+
+## Architecture
+
+```
+memory-viewer/
+├── server/           # Express API + WebSocket server
+│   └── index.ts      # File browsing, search, system info, live reload
+├── src/              # React frontend (Vite + Tailwind)
+│   ├── App.tsx       # Main layout with responsive sidebar
+│   ├── api.ts        # API client
+│   ├── hooks/        # Custom React hooks
+│   │   └── useWebSocket.ts
+│   └── components/
+│       ├── Dashboard.tsx    # System overview + today's memory
+│       ├── FileTree.tsx     # Recursive file tree navigation
+│       ├── FileViewer.tsx   # Markdown renderer + editor
+│       └── SearchPanel.tsx  # Full-text search modal
+└── package.json
+```
+
+**Backend:** Express 5 serves a REST API for file operations and a WebSocket endpoint for live file-change notifications (powered by chokidar).
+
+**Frontend:** React 19 + Tailwind CSS 4 + Vite 7. Markdown rendered with react-markdown and remark-gfm.
+
+## API Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/files` | List all `.md` files as a tree |
+| `GET` | `/api/file?path=...` | Read a file's content |
+| `PUT` | `/api/file` | Save a file (`{ path, content }`) |
+| `GET` | `/api/search?q=...` | Full-text search across all files |
+| `GET` | `/api/system` | System info and today's memory |
+| `WS` | `/ws` | Live file-change notifications |
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| `Ctrl+K` / `⌘K` | Open search |
+| `Ctrl+S` / `⌘S` | Save file (in edit mode) |
+| `Escape` | Close search |
+
+## License
+
+MIT © [Silicon Dawn](https://github.com/silicondawn)

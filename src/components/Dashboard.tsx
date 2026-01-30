@@ -1,133 +1,109 @@
-import { useEffect, useState } from 'react';
-import { fetchDashboard, DashboardData, saveFile } from '../api';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useState } from "react";
+import { fetchSystem, type SystemInfo } from "../api";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 
-export default function Dashboard() {
-  const [data, setData] = useState<DashboardData | null>(null);
-  const navigate = useNavigate();
+function formatUptime(seconds: number): string {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const parts: string[] = [];
+  if (d > 0) parts.push(`${d}d`);
+  parts.push(`${h}h ${m}m`);
+  return parts.join(" ");
+}
+
+function formatBytes(bytes: number): string {
+  return (bytes / 1024 / 1024 / 1024).toFixed(1) + " GB";
+}
+
+export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }) {
+  const [info, setInfo] = useState<SystemInfo | null>(null);
 
   useEffect(() => {
-    fetchDashboard().then(setData).catch(console.error);
+    fetchSystem().then(setInfo).catch(console.error);
   }, []);
 
-  const createToday = async () => {
-    const now = new Date();
-    const dateStr = now.toISOString().split('T')[0];
-    const filename = `memory/${dateStr}.md`;
-    const content = `# ${dateStr}\n\n`;
-    
-    try {
-      await saveFile(filename, content);
-      navigate(`/file?file=${encodeURIComponent(filename)}`);
-    } catch (e) {
-      alert('创建失败: ' + e);
-    }
-  };
+  if (!info) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500">
+        <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin mr-3" />
+        Loading…
+      </div>
+    );
+  }
 
-  if (!data) return <div className="p-8 text-[#8b949e]">Loading...</div>;
-
-  const memUsed = ((data.stats.memTotal - data.stats.memFree) / 1024 / 1024 / 1024).toFixed(2);
-  const memTotal = (data.stats.memTotal / 1024 / 1024 / 1024).toFixed(2);
-  const uptime = (data.stats.uptime / 3600).toFixed(1);
+  const memPercent = ((info.memUsed / info.memTotal) * 100).toFixed(1);
 
   return (
-    <div className="p-8 max-w-5xl mx-auto">
-      <div className="flex items-center justify-between mb-8 pb-4 border-b border-[#30363d]">
-        <h1 className="text-2xl font-semibold">👋 Hi Yibo, System Online</h1>
-        <button 
-          onClick={() => fetchDashboard().then(setData)}
-          className="px-3 py-1.5 bg-[#21262d] border border-[#30363d] rounded-md text-sm text-[#c9d1d9] hover:bg-[#30363d] transition-colors cursor-pointer"
-        >
-          🔄 Refresh
-        </button>
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+      <h1 className="text-2xl font-bold text-white flex items-center gap-2">
+        <span className="text-3xl">📊</span> Dashboard
+      </h1>
+
+      {/* Stats */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+        <StatCard label="Uptime" value={formatUptime(info.uptime)} />
+        <StatCard label="Memory" value={`${memPercent}%`} sub={`${formatBytes(info.memUsed)} / ${formatBytes(info.memTotal)}`} />
+        <StatCard label="Load" value={info.load[0].toFixed(2)} sub={info.load.map((l) => l.toFixed(2)).join(" · ")} />
+        <StatCard label="Files" value={String(info.totalFiles)} sub=".md files tracked" />
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {/* System Stats */}
-        <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-5">
-          <h3 className="text-[#58a6ff] font-semibold mb-4 flex items-center gap-2">
-            🖥️ System Status
-          </h3>
-          <div className="space-y-3 text-sm">
-            <div className="flex justify-between">
-              <span className="text-[#8b949e]">Uptime</span>
-              <span className="font-mono font-semibold">{uptime} hours</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#8b949e]">Memory</span>
-              <span className="font-mono font-semibold">{memUsed} / {memTotal} GB</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#8b949e]">Load Avg</span>
-              <span className="font-mono font-semibold">{data.stats.load[0].toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between">
-              <span className="text-[#8b949e]">OS</span>
-              <span className="font-mono font-semibold">{data.stats.platform}</span>
-            </div>
-          </div>
-        </div>
+      {/* Host info */}
+      <div className="text-sm text-gray-500 flex items-center gap-2">
+        <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
+        {info.hostname} · {info.platform}
+      </div>
 
-        {/* Today's Memory */}
-        <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-5">
-          <h3 className="text-[#58a6ff] font-semibold mb-4 flex items-center gap-2">
-            📅 Today's Context
-          </h3>
-          {data.today.exists ? (
-            <div>
-              <div className="mb-2 text-sm">
-                <span className="text-[#8b949e] mr-2">File</span>
-                <a 
-                  href="#" 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    navigate(`/file?file=${encodeURIComponent(data.today.filename)}`);
-                  }}
-                  className="text-[#58a6ff] hover:underline"
-                >
-                  {data.today.filename}
-                </a>
-              </div>
-              <div className="bg-[#0d1117] border border-[#30363d] rounded p-3 text-xs text-[#8b949e] max-h-[150px] overflow-hidden relative">
-                 <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                   {data.today.snippet || ''}
-                 </ReactMarkdown>
-                 <div className="absolute bottom-0 left-0 right-0 h-10 bg-gradient-to-t from-[#0d1117] to-transparent pointer-events-none"></div>
-              </div>
-            </div>
-          ) : (
-            <div className="flex flex-col items-start">
-              <div className="text-[#8b949e] text-sm mb-3">No memory file for today yet.</div>
-              <button 
-                onClick={createToday}
-                className="px-3 py-1.5 bg-[#238636] text-white rounded-md text-sm hover:bg-[#2ea043] transition-colors cursor-pointer"
-              >
-                Create Now
-              </button>
-            </div>
+      {/* Today's memory */}
+      <section className="bg-gray-900/50 border border-gray-800 rounded-xl p-5">
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-lg font-semibold text-white">📝 Today&apos;s Memory</h2>
+          {info.todayMemory && (
+            <button
+              onClick={() => onOpenFile(info.todayMemory!.filename)}
+              className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
+            >
+              View full →
+            </button>
           )}
         </div>
-
-        {/* Quick Actions */}
-        <div className="bg-[#161b22] border border-[#30363d] rounded-lg p-5">
-          <h3 className="text-[#58a6ff] font-semibold mb-4 flex items-center gap-2">
-            🚀 Quick Actions
-          </h3>
-          <div className="flex flex-wrap gap-2">
-            {['NIGHTBUILDS.md', 'TODO.md', 'HEARTBEAT.md'].map(file => (
-              <button
-                key={file}
-                onClick={() => navigate(`/file?file=${encodeURIComponent(file)}`)}
-                className="px-3 py-1.5 bg-[#21262d] border border-[#30363d] rounded-md text-sm text-[#c9d1d9] hover:bg-[#30363d] transition-colors cursor-pointer"
-              >
-                {file.replace('.md', '')}
-              </button>
-            ))}
+        {info.todayMemory ? (
+          <div className="markdown-body text-sm opacity-80">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>
+              {info.todayMemory.snippet}
+            </ReactMarkdown>
+            <div className="text-xs text-gray-600 mt-3">
+              {info.todayMemory.length.toLocaleString()} characters
+            </div>
           </div>
-        </div>
+        ) : (
+          <p className="text-gray-500 italic">No memory entries for today yet.</p>
+        )}
+      </section>
+
+      {/* Quick access */}
+      <div className="flex flex-wrap gap-2">
+        {["MEMORY.md", "SOUL.md", "USER.md", "AGENTS.md"].map((f) => (
+          <button
+            key={f}
+            onClick={() => onOpenFile(f)}
+            className="btn-secondary text-sm"
+          >
+            {f}
+          </button>
+        ))}
       </div>
+    </div>
+  );
+}
+
+function StatCard({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-4">
+      <div className="text-xs text-gray-500 uppercase tracking-wider mb-1">{label}</div>
+      <div className="text-xl font-bold text-white">{value}</div>
+      {sub && <div className="text-xs text-gray-500 mt-0.5">{sub}</div>}
     </div>
   );
 }

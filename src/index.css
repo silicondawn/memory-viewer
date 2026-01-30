@@ -1,60 +1,70 @@
 @import "tailwindcss";
 
-/* 全局暗色主题 */
+/* Base */
 body {
-  @apply bg-gray-950 text-gray-100;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+  @apply bg-gray-950 text-gray-100 antialiased;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
 }
 
-/* Markdown 渲染样式 - GitHub 暗色风格 */
+/* Buttons */
+.btn-primary {
+  @apply px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors;
+}
+.btn-secondary {
+  @apply px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 rounded-lg transition-colors;
+}
+
+/* Markdown */
 .markdown-body {
   @apply text-gray-200 leading-relaxed;
 }
-.markdown-body h1 { @apply text-2xl font-bold text-white border-b border-gray-700 pb-2 mb-4 mt-6; }
-.markdown-body h2 { @apply text-xl font-semibold text-white border-b border-gray-800 pb-1 mb-3 mt-5; }
-.markdown-body h3 { @apply text-lg font-semibold text-gray-100 mb-2 mt-4; }
+.markdown-body h1 { @apply text-2xl font-bold text-white border-b border-gray-800 pb-2 mb-4 mt-8 first:mt-0; }
+.markdown-body h2 { @apply text-xl font-semibold text-white border-b border-gray-800/50 pb-1.5 mb-3 mt-6; }
+.markdown-body h3 { @apply text-lg font-semibold text-gray-100 mb-2 mt-5; }
+.markdown-body h4 { @apply text-base font-semibold text-gray-200 mb-2 mt-4; }
 .markdown-body p { @apply mb-3; }
-.markdown-body ul { @apply list-disc pl-6 mb-3; }
-.markdown-body ol { @apply list-decimal pl-6 mb-3; }
-.markdown-body li { @apply mb-1; }
-.markdown-body code { @apply bg-gray-800 text-emerald-400 px-1.5 py-0.5 rounded text-sm; }
-.markdown-body pre { @apply bg-gray-900 border border-gray-700 rounded-lg p-4 mb-3 overflow-x-auto; }
-.markdown-body pre code { @apply bg-transparent p-0; }
-.markdown-body blockquote { @apply border-l-4 border-gray-600 pl-4 text-gray-400 italic my-3; }
-.markdown-body a { @apply text-blue-400 hover:text-blue-300 underline; }
-.markdown-body table { @apply w-full border-collapse mb-3; }
-.markdown-body th { @apply bg-gray-800 border border-gray-700 px-3 py-2 text-left font-semibold; }
-.markdown-body td { @apply border border-gray-700 px-3 py-2; }
-.markdown-body hr { @apply border-gray-700 my-4; }
+.markdown-body ul { @apply list-disc pl-6 mb-3 space-y-0.5; }
+.markdown-body ol { @apply list-decimal pl-6 mb-3 space-y-0.5; }
+.markdown-body li { @apply text-gray-300; }
+.markdown-body code {
+  @apply bg-gray-800 text-emerald-400 px-1.5 py-0.5 rounded text-[0.9em] font-mono;
+}
+.markdown-body pre {
+  @apply bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4 overflow-x-auto text-sm;
+}
+.markdown-body pre code { @apply bg-transparent p-0 text-gray-300; }
+.markdown-body blockquote {
+  @apply border-l-4 border-blue-500/40 pl-4 text-gray-400 italic my-4;
+}
+.markdown-body a { @apply text-blue-400 hover:text-blue-300 underline decoration-blue-400/30 hover:decoration-blue-300/50 transition-colors; }
+.markdown-body table { @apply w-full border-collapse mb-4 text-sm; }
+.markdown-body th { @apply bg-gray-800/50 border border-gray-800 px-3 py-2 text-left font-semibold text-gray-200; }
+.markdown-body td { @apply border border-gray-800 px-3 py-2 text-gray-300; }
+.markdown-body tr:hover td { @apply bg-gray-900/50; }
+.markdown-body hr { @apply border-gray-800 my-6; }
 .markdown-body strong { @apply text-white font-semibold; }
 .markdown-body img { @apply rounded-lg max-w-full; }
 
-/* 编辑器样式 */
+/* Editor */
 .editor-textarea {
-  @apply w-full h-full bg-gray-900 text-gray-100 font-mono text-sm p-4 border border-gray-700 rounded-lg resize-none;
+  @apply w-full h-full bg-gray-900/50 text-gray-100 font-mono text-sm p-4 border border-gray-800 rounded-lg resize-none;
   tab-size: 2;
 }
 .editor-textarea:focus {
-  @apply outline-none ring-2 ring-blue-500 border-blue-500;
+  @apply outline-none ring-2 ring-blue-500/50 border-blue-500/50;
 }
 
-/* Toast 通知 */
+/* Toast */
 .toast {
-  @apply fixed bottom-6 right-6 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg border border-gray-700 z-50;
-  animation: slideIn 0.3s ease-out;
+  @apply fixed bottom-6 right-6 bg-gray-800 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-gray-700 z-50 text-sm;
+  animation: toast-in 0.3s ease-out;
 }
-@keyframes slideIn {
-  from { transform: translateY(20px); opacity: 0; }
+@keyframes toast-in {
+  from { transform: translateY(16px); opacity: 0; }
   to { transform: translateY(0); opacity: 1; }
 }
 
-/* 滚动条 */
-::-webkit-scrollbar { width: 8px; height: 8px; }
-::-webkit-scrollbar-track { @apply bg-gray-900; }
-::-webkit-scrollbar-thumb { @apply bg-gray-700 rounded-full; }
-::-webkit-scrollbar-thumb:hover { @apply bg-gray-600; }
-
-/* 文件树选中状态 */
-.file-active {
-  @apply bg-blue-900/40 text-blue-300;
-}
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { @apply bg-transparent; }
+::-webkit-scrollbar-thumb { @apply bg-gray-700/50 rounded-full hover:bg-gray-600/50; }

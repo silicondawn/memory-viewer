@@ -1,160 +1,156 @@
-import { useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import { fetchFile, saveFile, FileData } from '../api';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
-import 'github-markdown-css/github-markdown-dark.css';
+import { useEffect, useState, useCallback, useRef } from "react";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import { fetchFile, saveFile } from "../api";
 
-export default function FileViewer() {
-  const [searchParams] = useSearchParams();
-  const filePath = searchParams.get('file');
-  
-  const [fileData, setFileData] = useState<FileData | null>(null);
-  const [content, setContent] = useState('');
-  const [isEditing, setIsEditing] = useState(false);
-  const [unsaved, setUnsaved] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
-  
-  const textareaRef = useRef<HTMLTextAreaElement>(null);
+interface FileViewerProps {
+  filePath: string;
+  refreshKey?: number; // bump to force reload
+}
+
+export function FileViewer({ filePath, refreshKey }: FileViewerProps) {
+  const [content, setContent] = useState("");
+  const [editContent, setEditContent] = useState("");
+  const [mtime, setMtime] = useState("");
+  const [editing, setEditing] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [toast, setToast] = useState("");
+  const editorRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
-    if (!filePath) return;
-    load(filePath);
-  }, [filePath]);
-
-  const load = async (path: string) => {
     setLoading(true);
-    setError(null);
-    setIsEditing(false);
-    setUnsaved(false);
+    setEditing(false);
+    fetchFile(filePath)
+      .then((data) => {
+        setContent(data.content);
+        setEditContent(data.content);
+        setMtime(data.mtime);
+      })
+      .catch(() => showToast("❌ Failed to load"))
+      .finally(() => setLoading(false));
+  }, [filePath, refreshKey]);
+
+  const showToast = (msg: string) => {
+    setToast(msg);
+    setTimeout(() => setToast(""), 2000);
+  };
+
+  const hasChanges = editing && editContent !== content;
+
+  const handleSave = useCallback(async () => {
     try {
-      const data = await fetchFile(path);
-      setFileData(data);
-      setContent(data.content);
-    } catch (e: any) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
+      const result = await saveFile(filePath, editContent);
+      if (result.ok) {
+        setContent(editContent);
+        setMtime(result.mtime);
+        setEditing(false);
+        showToast("✅ Saved");
+      }
+    } catch {
+      showToast("❌ Save failed");
     }
+  }, [filePath, editContent]);
+
+  const handleCancel = () => {
+    if (hasChanges && !confirm("Discard unsaved changes?")) return;
+    setEditContent(content);
+    setEditing(false);
   };
 
   const handleEdit = () => {
-    setIsEditing(true);
-    // 等待 React 渲染 textarea 后聚焦
-    setTimeout(() => {
-      if (textareaRef.current) {
-        textareaRef.current.focus();
+    setEditing(true);
+    setTimeout(() => editorRef.current?.focus(), 50);
+  };
+
+  // Ctrl+S
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === "s" && editing) {
+        e.preventDefault();
+        handleSave();
       }
-    }, 0);
-  };
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [editing, handleSave]);
 
-  const handleCancel = () => {
-    if (unsaved && !confirm('放弃未保存的修改？')) return;
-    setIsEditing(false);
-    setContent(fileData?.content || '');
-    setUnsaved(false);
-  };
+  // Unsaved changes warning
+  useEffect(() => {
+    const handler = (e: BeforeUnloadEvent) => {
+      if (hasChanges) e.preventDefault();
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [hasChanges]);
 
-  const handleSave = async () => {
-    if (!filePath) return;
-    try {
-      const res = await saveFile(filePath, content);
-      if (res.ok) {
-        setFileData({ ...fileData!, content, mtime: res.mtime });
-        setIsEditing(false);
-        setUnsaved(false);
-        // 可以加个 Toast
-      } else {
-        alert('保存失败');
-      }
-    } catch (e) {
-      console.error(e);
-      alert('保存出错');
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Tab') {
-      e.preventDefault();
-      const t = e.target as HTMLTextAreaElement;
-      const s = t.selectionStart, end = t.selectionEnd;
-      const newVal = t.value.substring(0, s) + '  ' + t.value.substring(end);
-      setContent(newVal);
-      setUnsaved(true);
-      // 需要在下一个 tick 设置光标位置
-      setTimeout(() => {
-        t.selectionStart = t.selectionEnd = s + 2;
-      }, 0);
-    }
-    if (e.key === 's' && (e.ctrlKey || e.metaKey)) {
-      e.preventDefault();
-      handleSave();
-    }
-  };
-
-  if (!filePath) return <div className="p-8">请选择文件</div>;
-  if (loading) return <div className="p-8">Loading...</div>;
-  if (error) return <div className="p-8 text-red-500">Error: {error}</div>;
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-full text-gray-500">
+        <div className="w-5 h-5 border-2 border-gray-600 border-t-blue-400 rounded-full animate-spin mr-3" />
+        Loading…
+      </div>
+    );
+  }
 
   return (
-    <div className="p-8 max-w-5xl mx-auto h-full flex flex-col">
-      <div className="flex items-center gap-4 mb-6 pb-4 border-b border-[#30363d] flex-wrap">
-        <h1 className={`text-xl font-semibold ${unsaved ? 'text-[#d29922]' : ''}`}>
-          {filePath} {unsaved && '*'}
-        </h1>
-        <span className="text-sm text-[#8b949e]">
-           {fileData && new Date(fileData.mtime).toLocaleString('zh-CN')}
-        </span>
-        
-        <div className="ml-auto flex gap-2">
-          {!isEditing ? (
-            <button 
-              onClick={handleEdit}
-              className="px-3 py-1.5 bg-[#21262d] border border-[#30363d] rounded-md text-sm text-[#c9d1d9] hover:bg-[#30363d] transition-colors cursor-pointer"
-            >
-              ✏️ 编辑
-            </button>
-          ) : (
+    <div className="flex flex-col h-full">
+      {/* Toolbar */}
+      <header className="flex items-center justify-between px-4 py-2.5 border-b border-gray-800 bg-gray-900/80 backdrop-blur shrink-0">
+        <div className="min-w-0">
+          <span className={`font-medium truncate ${hasChanges ? "text-yellow-400" : "text-white"}`}>
+            {hasChanges && "● "}{filePath}
+          </span>
+          <span className="text-xs text-gray-500 ml-3 hidden sm:inline">
+            {new Date(mtime).toLocaleString()}
+          </span>
+        </div>
+        <div className="flex gap-2 shrink-0">
+          {editing ? (
             <>
-              <button 
-                onClick={handleSave}
-                className="px-3 py-1.5 bg-[#238636] border border-[#238636] rounded-md text-sm text-white hover:bg-[#2ea043] transition-colors cursor-pointer"
-              >
-                💾 保存
+              <button onClick={handleSave} className="btn-primary text-sm">
+                Save
               </button>
-              <button 
-                onClick={handleCancel}
-                className="px-3 py-1.5 bg-[#da3633] border border-[#da3633] rounded-md text-sm text-white hover:bg-[#f85149] transition-colors cursor-pointer"
-              >
-                ✖ 取消
+              <button onClick={handleCancel} className="btn-secondary text-sm">
+                Cancel
               </button>
             </>
+          ) : (
+            <button onClick={handleEdit} className="btn-secondary text-sm">
+              ✏️ Edit
+            </button>
           )}
         </div>
-      </div>
+      </header>
 
-      <div className="flex-1 overflow-y-auto min-h-0 relative">
-        {isEditing ? (
+      {/* Content */}
+      <div className="flex-1 overflow-auto p-4 sm:p-6">
+        {editing ? (
           <textarea
-            ref={textareaRef}
-            value={content}
-            onChange={(e) => {
-              setContent(e.target.value);
-              setUnsaved(true);
+            ref={editorRef}
+            value={editContent}
+            onChange={(e) => setEditContent(e.target.value)}
+            className="editor-textarea"
+            style={{ minHeight: "100%" }}
+            onKeyDown={(e) => {
+              if (e.key === "Tab") {
+                e.preventDefault();
+                const t = e.currentTarget;
+                const s = t.selectionStart;
+                const end = t.selectionEnd;
+                setEditContent(editContent.substring(0, s) + "  " + editContent.substring(end));
+                setTimeout(() => { t.selectionStart = t.selectionEnd = s + 2; }, 0);
+              }
             }}
-            onKeyDown={handleKeyDown}
-            spellCheck={false}
-            className="w-full h-full bg-[#0d1117] text-[#c9d1d9] border border-[#30363d] rounded-lg p-4 font-mono text-sm leading-relaxed outline-none focus:border-[#58a6ff] resize-none"
           />
         ) : (
-          <div className="markdown-body !bg-transparent !text-[#c9d1d9]">
-            <ReactMarkdown remarkPlugins={[remarkGfm]}>
-              {content}
-            </ReactMarkdown>
-          </div>
+          <article className="markdown-body max-w-3xl mx-auto">
+            <ReactMarkdown remarkPlugins={[remarkGfm]}>{content}</ReactMarkdown>
+          </article>
         )}
       </div>
+
+      {/* Toast */}
+      {toast && <div className="toast">{toast}</div>}
     </div>
   );
 }
