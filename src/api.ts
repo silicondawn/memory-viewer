@@ -1,0 +1,55 @@
+/** API 请求封装 */
+const BASE = 'http://localhost:3001';
+
+export interface FileNode {
+  name: string;
+  type: 'file' | 'dir';
+  path: string;
+  children?: FileNode[];
+}
+
+export interface FileData {
+  content: string;
+  mtime: string;
+  size: number;
+}
+
+export interface SystemInfo {
+  uptime: number;
+  memTotal: number;
+  memFree: number;
+  memUsed: number;
+  load: number[];
+  platform: string;
+  hostname: string;
+  todayMemory: {
+    filename: string;
+    snippet: string;
+    length: number;
+  } | null;
+}
+
+export async function fetchFiles(): Promise<FileNode[]> {
+  const r = await fetch(`${BASE}/api/files`);
+  return r.json();
+}
+
+export async function fetchFile(path: string): Promise<FileData> {
+  const r = await fetch(`${BASE}/api/file?path=${encodeURIComponent(path)}`);
+  if (!r.ok) throw new Error('文件读取失败');
+  return r.json();
+}
+
+export async function saveFile(path: string, content: string): Promise<{ ok: boolean; mtime: string }> {
+  const r = await fetch(`${BASE}/api/file`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ path, content }),
+  });
+  return r.json();
+}
+
+export async function fetchSystem(): Promise<SystemInfo> {
+  const r = await fetch(`${BASE}/api/system`);
+  return r.json();
+}
