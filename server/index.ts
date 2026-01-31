@@ -276,24 +276,68 @@ app.post("/api/gateway/chat", async (req, res) => {
   if (!gatewayUrl || !token || !messages) {
     return void res.status(400).json({ error: "Missing gatewayUrl, token, or messages" });
   }
+
+  // SSE headers
+  res.setHeader("Content-Type", "text/event-stream");
+  res.setHeader("Cache-Control", "no-cache");
+  res.setHeader("Connection", "keep-alive");
+  res.flushHeaders();
+
   try {
     const url = `${gatewayUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 300000); // 5 min
+
     const resp = await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify({ model: "default", messages }),
+      body: JSON.stringify({ model: "default", messages, stream: true }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
+
     if (!resp.ok) {
       const text = await resp.text();
-      return void res.status(resp.status).json({ error: text });
+      res.write(`data: ${JSON.stringify({ error: text, status: resp.status })}\n\n`);
+      res.end();
+      return;
     }
-    const data = await resp.json();
-    res.json(data);
+
+    // Check if response is actually streaming
+    const contentType = resp.headers.get("content-type") || "";
+    if (contentType.includes("text/event-stream") || contentType.includes("text/plain")) {
+      // Stream SSE from Gateway → client
+      const reader = resp.body?.getReader();
+      if (!reader) {
+        res.write(`data: ${JSON.stringify({ error: "No response body" })}\n\n`);
+        res.end();
+        return;
+      }
+      const decoder = new TextDecoder();
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        const chunk = decoder.decode(value, { stream: true });
+        res.write(chunk);
+      }
+    } else {
+      // Non-streaming response - send as single SSE event
+      const data = await resp.json();
+      const content = data.choices?.[0]?.message?.content || JSON.stringify(data);
+      res.write(`data: ${JSON.stringify({ content })}\n\n`);
+    }
+
+    res.write("data: [DONE]\n\n");
+    res.end();
   } catch (err: any) {
-    res.status(502).json({ error: err.message || "Gateway request failed" });
+    const msg = err.name === 'AbortError'
+      ? "Gateway request timeout (5min)"
+      : (err.message || "Gateway request failed");
+    res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
+    res.end();
   }
 });
 

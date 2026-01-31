@@ -86,9 +86,49 @@ export function BootstrapWizard({ name, gatewayUrl, token, mvPort, onComplete, o
         const data = await resp.json().catch(() => ({ error: resp.statusText }));
         throw new Error(data.error || `HTTP ${resp.status}`);
       }
-      const data = await resp.json();
-      const content = data.choices?.[0]?.message?.content || JSON.stringify(data);
-      setBotResponse(content);
+
+      // Read SSE stream
+      const reader = resp.body?.getReader();
+      if (!reader) throw new Error("No response body");
+
+      const decoder = new TextDecoder();
+      let accumulated = "";
+      let buffer = "";
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+
+        // Process complete SSE lines
+        const lines = buffer.split("\n");
+        buffer = lines.pop() || ""; // Keep incomplete line in buffer
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const payload = line.slice(6);
+          if (payload === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(payload);
+            if (parsed.error) throw new Error(parsed.error);
+
+            // Handle streaming delta or complete content
+            if (parsed.choices?.[0]?.delta?.content) {
+              accumulated += parsed.choices[0].delta.content;
+            } else if (parsed.content) {
+              accumulated = parsed.content;
+            }
+            setBotResponse(accumulated);
+          } catch (e: any) {
+            if (e.message && !e.message.includes("JSON")) {
+              throw e; // Re-throw actual errors
+            }
+          }
+        }
+      }
+
+      if (accumulated) setBotResponse(accumulated);
 
       // Step 4: verify
       setStep("verifying");
