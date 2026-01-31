@@ -39,6 +39,7 @@ Set environment variables to customize:
 |----------|---------|-------------|
 | `PORT` | `3001` | API server port |
 | `WORKSPACE_DIR` | `~/clawd` | Root directory containing `.md` files |
+| `STATIC_DIR` | `./dist` | Directory for built frontend assets |
 
 ## Production
 
