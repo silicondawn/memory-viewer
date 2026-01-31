@@ -36,10 +36,15 @@ function maskChildren(children: React.ReactNode): React.ReactNode {
 }
 
 /** Code block with copy button */
+import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
+import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+
 function CodeBlock({ className, children, ...props }: any) {
   const { t } = useLocale();
   const [copied, setCopied] = useState(false);
-  const isBlock = className?.startsWith("language-");
+  const match = /language-(\w+)/.exec(className || "");
+  const isBlock = !!match;
   if (!isBlock) {
     if (typeof children === "string") {
       return <code {...props}><SensitiveText>{children}</SensitiveText></code>;
@@ -47,8 +52,9 @@ function CodeBlock({ className, children, ...props }: any) {
     return <code {...props}>{children}</code>;
   }
   const text = String(children).replace(/\n$/, "");
+  const isDark = document.documentElement.classList.contains("dark");
   return (
-    <code className={className} {...props}>
+    <div className="relative group">
       <button
         className="code-copy-btn"
         onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
@@ -56,8 +62,23 @@ function CodeBlock({ className, children, ...props }: any) {
       >
         {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
       </button>
-      {children}
-    </code>
+      <SyntaxHighlighter
+        style={isDark ? oneDark : oneLight}
+        language={match[1]}
+        PreTag="div"
+        customStyle={{
+          margin: 0,
+          borderRadius: "0.5rem",
+          fontSize: "0.875rem",
+          border: `1px solid var(--pre-border)`,
+        }}
+        codeTagProps={{
+          style: { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" },
+        }}
+      >
+        {text}
+      </SyntaxHighlighter>
+    </div>
   );
 }
 
@@ -255,6 +276,10 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkFrontmatter]}
               components={{
+                pre({ children }) {
+                  // SyntaxHighlighter handles its own <pre>, so just pass through
+                  return <>{children}</>;
+                },
                 code: CodeBlock,
                 // Mask in plain text nodes within paragraphs
                 p({ children }) {
