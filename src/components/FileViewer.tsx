@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
 import { fetchFile, saveFile, ConflictResult } from "../api";
-import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle } from "lucide-react";
+import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw } from "lucide-react";
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
 import { lazy, Suspense } from "react";
@@ -154,6 +154,35 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
       .finally(() => setLoading(false));
   }, [filePath, refreshKey]);
 
+  // Auto-refresh every 10s when not editing (for when WebSocket is unavailable)
+  useEffect(() => {
+    if (editing) return;
+    const interval = setInterval(() => {
+      fetchFile(filePath).then((data) => {
+        if (data.mtime !== mtime) {
+          setContent(data.content);
+          setEditContent(data.content);
+          setMtime(data.mtime);
+        }
+      }).catch(() => {});
+    }, 10000);
+    return () => clearInterval(interval);
+  }, [filePath, editing, mtime]);
+
+  const [refreshing, setRefreshing] = useState(false);
+  const handleRefresh = useCallback(() => {
+    setRefreshing(true);
+    fetchFile(filePath)
+      .then((data) => {
+        setContent(data.content);
+        setEditContent(data.content);
+        setMtime(data.mtime);
+        showToast(t("file.reloaded") || "Refreshed");
+      })
+      .catch(() => showToast(t("file.failedToLoad")))
+      .finally(() => setRefreshing(false));
+  }, [filePath]);
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(""), 2000);
@@ -269,9 +298,14 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
               </button>
             </>
           ) : (
-            <button onClick={handleEdit} className="btn-secondary text-sm flex items-center gap-1">
-              <Pencil className="w-3.5 h-3.5" /> {t("file.edit")}
-            </button>
+            <>
+              <button onClick={handleRefresh} className="btn-secondary text-sm flex items-center gap-1" disabled={refreshing} title="Refresh file">
+                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+              </button>
+              <button onClick={handleEdit} className="btn-secondary text-sm flex items-center gap-1">
+                <Pencil className="w-3.5 h-3.5" /> {t("file.edit")}
+              </button>
+            </>
           )}
           </div>
         </div>
