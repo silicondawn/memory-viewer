@@ -61,11 +61,27 @@ export async function fetchFile(path: string): Promise<FileData> {
   return r.json();
 }
 
-export async function saveFile(path: string, content: string): Promise<{ ok: boolean; mtime: string }> {
+export interface SaveResult {
+  ok: boolean;
+  mtime: string;
+}
+
+export interface ConflictResult {
+  error: "conflict";
+  message: string;
+  serverMtime: string;
+  serverContent: string;
+}
+
+export async function saveFile(
+  path: string,
+  content: string,
+  expectedMtime?: string
+): Promise<SaveResult | ConflictResult> {
   const r = await fetch(`${_baseUrl}/api/file`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ path, content }),
+    body: JSON.stringify({ path, content, expectedMtime }),
   });
   return r.json();
 }

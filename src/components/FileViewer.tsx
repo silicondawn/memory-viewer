@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
-import { fetchFile, saveFile } from "../api";
-import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy } from "lucide-react";
+import { fetchFile, saveFile, ConflictResult } from "../api";
+import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle } from "lucide-react";
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
 import { MarkdownEditor } from "./MarkdownEditor";
@@ -136,6 +136,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
+  const [conflict, setConflict] = useState<ConflictResult | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -159,19 +160,38 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
 
   const hasChanges = editing && editContent !== content;
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (force = false) => {
     try {
-      const result = await saveFile(filePath, editContent);
-      if (result.ok) {
+      const result = await saveFile(filePath, editContent, force ? undefined : mtime);
+      if ("error" in result && result.error === "conflict") {
+        setConflict(result as ConflictResult);
+        return;
+      }
+      if ("ok" in result && result.ok) {
         setContent(editContent);
         setMtime(result.mtime);
         setEditing(false);
+        setConflict(null);
         showToast(t("file.saved"));
       }
     } catch {
       showToast(t("file.saveFailed"));
     }
-  }, [filePath, editContent]);
+  }, [filePath, editContent, mtime]);
+
+  const handleConflictOverwrite = useCallback(() => {
+    handleSave(true);
+  }, [handleSave]);
+
+  const handleConflictReload = useCallback(() => {
+    if (conflict) {
+      setContent(conflict.serverContent);
+      setEditContent(conflict.serverContent);
+      setMtime(conflict.serverMtime);
+      setConflict(null);
+      showToast(t("file.reloaded"));
+    }
+  }, [conflict]);
 
   const handleCancel = () => {
     if (hasChanges && !confirm(t("file.discardChanges"))) return;
@@ -313,6 +333,35 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
         <button onClick={scrollToTop} className="scroll-top-btn" title={t("file.backToTop")}>
           <ArrowUp className="w-5 h-5" />
         </button>
+      )}
+
+      {/* Conflict Dialog */}
+      {conflict && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+          <div className="rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center gap-3 mb-4">
+              <AlertTriangle className="w-6 h-6 text-yellow-400 shrink-0" />
+              <h3 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>{t("file.conflictTitle")}</h3>
+            </div>
+            <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
+              {t("file.conflictDesc")}
+            </p>
+            <p className="text-xs mb-5" style={{ color: "var(--text-faint)" }}>
+              {t("file.conflictTime")}: {new Date(conflict.serverMtime).toLocaleString()}
+            </p>
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setConflict(null)} className="btn-secondary text-sm">
+                {t("file.cancel")}
+              </button>
+              <button onClick={handleConflictReload} className="btn-secondary text-sm">
+                {t("file.conflictReload")}
+              </button>
+              <button onClick={handleConflictOverwrite} className="btn-primary text-sm">
+                {t("file.conflictOverwrite")}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* Toast */}

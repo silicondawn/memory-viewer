@@ -110,11 +110,26 @@ app.get("/api/file", (req, res) => {
   res.json({ content, mtime: stat.mtime, size: stat.size });
 });
 
-/** Save a file. */
+/** Save a file (with optimistic locking via expectedMtime). */
 app.put("/api/file", (req, res) => {
-  const { path: filePath, content } = req.body;
+  const { path: filePath, content, expectedMtime } = req.body;
   const full = safePath(filePath);
   if (!full) return void res.status(400).json({ error: "Invalid path" });
+
+  // Optimistic lock: if client sends expectedMtime, verify it matches
+  if (expectedMtime && fs.existsSync(full)) {
+    const currentMtime = fs.statSync(full).mtime.toISOString();
+    if (currentMtime !== expectedMtime) {
+      const currentContent = fs.readFileSync(full, "utf-8");
+      return void res.status(409).json({
+        error: "conflict",
+        message: "File was modified since you started editing",
+        serverMtime: currentMtime,
+        serverContent: currentContent,
+      });
+    }
+  }
+
   fs.mkdirSync(path.dirname(full), { recursive: true });
   fs.writeFileSync(full, content, "utf-8");
   const stat = fs.statSync(full);
