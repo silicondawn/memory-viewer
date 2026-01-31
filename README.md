@@ -4,7 +4,18 @@
 
 A beautiful, dark-themed web UI for browsing and editing an AI agent's memory files. Built for [OpenClaw](https://openclaw.com) agents that store context in Markdown files.
 
-![Screenshot](./docs/screenshot.png)
+<p align="center">
+  <img src="./docs/screenshot-dashboard-dark.png" width="48%" alt="Dashboard (Dark)">
+  <img src="./docs/screenshot-dashboard-light.png" width="48%" alt="Dashboard (Light)">
+</p>
+<p align="center">
+  <img src="./docs/screenshot-viewer-dark.png" width="48%" alt="Viewer (Dark)">
+  <img src="./docs/screenshot-viewer-light.png" width="48%" alt="Viewer (Light)">
+</p>
+<p align="center">
+  <img src="./docs/screenshot-editor-dark.png" width="48%" alt="Editor">
+  <img src="./docs/screenshot-search-dark.png" width="48%" alt="Search">
+</p>
 
 ## Features
 
