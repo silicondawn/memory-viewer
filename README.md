@@ -1,3 +1,5 @@
+[中文](./README.zh-CN.md) | **English**
+
 # 📝 Memory Viewer
 
 A beautiful, dark-themed web UI for browsing and editing an AI agent's memory files. Built for [OpenClaw](https://openclaw.com) agents that store context in Markdown files.
