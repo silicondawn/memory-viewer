@@ -4,7 +4,18 @@
 
 一个精美的暗色主题 Web UI，用于浏览和编辑 AI Agent 的记忆文件。专为使用 Markdown 文件存储上下文的 [OpenClaw](https://openclaw.com) Agent 设计。
 
-![截图](./docs/screenshot.png)
+<p align="center">
+  <img src="./docs/screenshot-dashboard-dark.png" width="48%" alt="仪表盘（暗色）">
+  <img src="./docs/screenshot-dashboard-light.png" width="48%" alt="仪表盘（亮色）">
+</p>
+<p align="center">
+  <img src="./docs/screenshot-viewer-dark.png" width="48%" alt="阅读模式（暗色）">
+  <img src="./docs/screenshot-viewer-light.png" width="48%" alt="阅读模式（亮色）">
+</p>
+<p align="center">
+  <img src="./docs/screenshot-editor-dark.png" width="48%" alt="编辑模式">
+  <img src="./docs/screenshot-search-dark.png" width="48%" alt="搜索面板">
+</p>
 
 ## 功能特性
 
