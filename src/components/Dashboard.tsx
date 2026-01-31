@@ -3,6 +3,7 @@ import { fetchSystem, fetchRecent, fetchMonthlyStats, type SystemInfo, type Rece
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { LayoutDashboard, FileText, Clock, BarChart3, Zap } from "lucide-react";
+import { useLocale } from "../hooks/useLocale";
 
 function formatUptime(seconds: number): string {
   const d = Math.floor(seconds / 86400);
@@ -18,21 +19,22 @@ function formatBytes(bytes: number): string {
   return (bytes / 1024 / 1024 / 1024).toFixed(1) + " GB";
 }
 
-function timeAgo(mtime: number): string {
+function timeAgo(mtime: number, t: (key: string) => string): string {
   const diff = Date.now() - mtime;
   const seconds = Math.floor(diff / 1000);
-  if (seconds < 60) return "just now";
+  if (seconds < 60) return t("dashboard.justNow");
   const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes} min ago`;
+  if (minutes < 60) return `${minutes} ${t("dashboard.minAgo")}`;
   const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
+  if (hours < 24) return `${hours}${t("dashboard.hAgo")}`;
   const days = Math.floor(hours / 24);
-  return `${days}d ago`;
+  return `${days}${t("dashboard.dAgo")}`;
 }
 
 const PINNED_FILES = ["MEMORY.md", "SOUL.md", "USER.md", "AGENTS.md"];
 
 export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }) {
+  const { t } = useLocale();
   const [info, setInfo] = useState<SystemInfo | null>(null);
   const [recent, setRecent] = useState<RecentFile[]>([]);
   const [monthly, setMonthly] = useState<MonthlyStats[]>([]);
@@ -47,7 +49,7 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
     return (
       <div className="flex items-center justify-center h-full" style={{ color: "var(--text-faint)" }}>
         <div className="w-5 h-5 border-2 border-t-blue-400 rounded-full animate-spin mr-3" style={{ borderColor: "var(--border)" }} />
-        Loading…
+        {t("dashboard.loading")}
       </div>
     );
   }
@@ -64,15 +66,15 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
       <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-        <LayoutDashboard className="w-7 h-7 text-blue-400" /> Dashboard
+        <LayoutDashboard className="w-7 h-7 text-blue-400" /> {t("dashboard.title")}
       </h1>
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
-        <StatCard label="Uptime" value={formatUptime(info.uptime)} />
-        <StatCard label="Memory" value={`${memPercent}%`} sub={`${formatBytes(info.memUsed)} / ${formatBytes(info.memTotal)}`} />
-        <StatCard label="Load" value={info.load[0].toFixed(2)} sub={info.load.map((l) => l.toFixed(2)).join(" · ")} />
-        <StatCard label="Files" value={String(info.totalFiles)} sub=".md files tracked" />
+        <StatCard label={t("dashboard.uptime")} value={formatUptime(info.uptime)} />
+        <StatCard label={t("dashboard.memory")} value={`${memPercent}%`} sub={`${formatBytes(info.memUsed)} / ${formatBytes(info.memTotal)}`} />
+        <StatCard label={t("dashboard.load")} value={info.load[0].toFixed(2)} sub={info.load.map((l) => l.toFixed(2)).join(" · ")} />
+        <StatCard label={t("dashboard.files")} value={String(info.totalFiles)} sub={t("dashboard.mdTracked")} />
       </div>
 
       {/* Host info */}
@@ -86,7 +88,7 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
         {/* Recently Modified */}
         <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-3" style={{ color: "var(--text-primary)" }}>
-            <Clock className="w-5 h-5 text-amber-400" /> Recently Modified
+            <Clock className="w-5 h-5 text-amber-400" /> {t("dashboard.recentlyModified")}
           </h2>
           <div className="space-y-1">
             {recent.slice(0, 5).map((f) => (
@@ -101,12 +103,12 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
                   {f.path}
                 </span>
                 <span className="text-xs whitespace-nowrap shrink-0" style={{ color: "var(--text-faint)" }}>
-                  {timeAgo(f.mtime)}
+                  {timeAgo(f.mtime, t)}
                 </span>
               </button>
             ))}
             {recent.length === 0 && (
-              <p className="text-sm italic" style={{ color: "var(--text-faint)" }}>No files found.</p>
+              <p className="text-sm italic" style={{ color: "var(--text-faint)" }}>{t("dashboard.noFiles")}</p>
             )}
           </div>
         </section>
@@ -114,7 +116,7 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
         {/* Monthly Stats Bar Chart */}
         <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-3" style={{ color: "var(--text-primary)" }}>
-            <BarChart3 className="w-5 h-5 text-purple-400" /> Memory by Month
+            <BarChart3 className="w-5 h-5 text-purple-400" /> {t("dashboard.memoryByMonth")}
           </h2>
           {monthly.length > 0 ? (
             <div className="space-y-2">
@@ -140,7 +142,7 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
               ))}
             </div>
           ) : (
-            <p className="text-sm italic" style={{ color: "var(--text-faint)" }}>No memory files found.</p>
+            <p className="text-sm italic" style={{ color: "var(--text-faint)" }}>{t("dashboard.noMemoryFiles")}</p>
           )}
         </section>
       </div>
@@ -149,14 +151,14 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
       <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-            <FileText className="w-5 h-5" style={{ color: "var(--text-muted)" }} /> Today&apos;s Memory
+            <FileText className="w-5 h-5" style={{ color: "var(--text-muted)" }} /> {t("dashboard.todayMemory")}
           </h2>
           {info.todayMemory && (
             <button
               onClick={() => onOpenFile(info.todayMemory!.filename)}
               className="text-sm text-blue-400 hover:text-blue-300 transition-colors"
             >
-              View full →
+              {t("dashboard.viewFull")}
             </button>
           )}
         </div>
@@ -166,18 +168,18 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
               {info.todayMemory.snippet}
             </ReactMarkdown>
             <div className="text-xs mt-3" style={{ color: "var(--text-faint)" }}>
-              {info.todayMemory.length.toLocaleString()} characters
+              {info.todayMemory.length.toLocaleString()} {t("dashboard.characters")}
             </div>
           </div>
         ) : (
-          <p style={{ color: "var(--text-faint)" }} className="italic">No memory entries for today yet.</p>
+          <p style={{ color: "var(--text-faint)" }} className="italic">{t("dashboard.noMemoryToday")}</p>
         )}
       </section>
 
       {/* Quick Access */}
       <section>
         <h2 className="text-sm font-semibold flex items-center gap-1.5 mb-2" style={{ color: "var(--text-muted)" }}>
-          <Zap className="w-4 h-4" /> Quick Access
+          <Zap className="w-4 h-4" /> {t("dashboard.quickAccess")}
         </h2>
         <div className="flex flex-wrap gap-2">
           {PINNED_FILES.map((f) => (

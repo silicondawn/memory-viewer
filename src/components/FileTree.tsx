@@ -1,6 +1,7 @@
 import { useState, useMemo } from "react";
 import type { FileNode } from "../api";
 import { ChevronDown, ChevronRight, Folder, FileText, Brain, Dna, Bot, User, Wrench, ListTodo, HeartPulse, IdCard, Settings } from "lucide-react";
+import { useLocale } from "../hooks/useLocale";
 
 /** Well-known bot config files shown in the top section */
 const BOT_FILES = new Set([
@@ -19,6 +20,7 @@ interface FileTreeProps {
 }
 
 export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
+  const { t } = useLocale();
   const { botFiles, otherNodes } = useMemo(() => {
     const bot: FileNode[] = [];
     const other: FileNode[] = [];
@@ -40,7 +42,7 @@ export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
       {botFiles.length > 0 && (
         <div className="mb-3">
           <div className="sidebar-section-title px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider">
-            Agent Config
+            {t("sidebar.agentConfig")}
           </div>
           {botFiles.map((node) => (
             <TreeNode key={node.path} node={node} activeFile={activeFile} onSelect={onSelect} depth={0} />
@@ -50,7 +52,7 @@ export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
       {otherNodes.length > 0 && (
         <div>
           <div className="sidebar-section-title px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider">
-            Files
+            {t("sidebar.files")}
           </div>
           {otherNodes.map((node) => (
             <TreeNode key={node.path} node={node} activeFile={activeFile} onSelect={onSelect} depth={0} />

@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { searchFiles, type SearchResult } from "../api";
 import { Search, FileText } from "lucide-react";
+import { useLocale } from "../hooks/useLocale";
 
 interface SearchPanelProps {
   onSelect: (path: string) => void;
@@ -8,6 +9,7 @@ interface SearchPanelProps {
 }
 
 export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
+  const { t } = useLocale();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
@@ -66,7 +68,7 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
             type="text"
             value={query}
             onChange={(e) => handleInput(e.target.value)}
-            placeholder="Search all memory files…"
+            placeholder={t("search.placeholder")}
             className="flex-1 bg-transparent outline-none text-base"
             style={{ color: "var(--text-primary)" }}
           />
@@ -82,7 +84,7 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
         <div className="max-h-[50vh] overflow-y-auto">
           {query.length >= 2 && results.length === 0 && !loading && (
             <div className="px-4 py-8 text-center" style={{ color: "var(--text-faint)" }}>
-              No results found for &ldquo;{query}&rdquo;
+              {t("search.noResults")} &ldquo;{query}&rdquo;
             </div>
           )}
           {results.map((r) => (
@@ -110,7 +112,7 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
         {/* Footer */}
         {results.length > 0 && (
           <div className="px-4 py-2 border-t text-xs" style={{ borderColor: "var(--border)", color: "var(--text-faint)" }}>
-            {results.length} files · {totalMatches} matches
+            {results.length} {t("search.files")} · {totalMatches} {t("search.matches")}
           </div>
         )}
       </div>

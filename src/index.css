@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+@theme {
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+}
+
 /* ===== Light / Dark base ===== */
 :root {
   --bg-primary: #f8fafc;
@@ -66,7 +70,7 @@
 body {
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  font-family: 'Inter', 'Noto Sans SC', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
 }
 

@@ -7,7 +7,8 @@ import { SearchPanel } from "./components/SearchPanel";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
-import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff } from "lucide-react";
+import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages } from "lucide-react";
+import { useLocaleState, LocaleContext } from "./hooks/useLocale";
 
 export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -18,6 +19,8 @@ export default function App() {
   const [refreshKey, setRefreshKey] = useState(0);
   const { theme, toggle: toggleTheme } = useTheme();
   const sensitive = useSensitiveState();
+  const localeState = useLocaleState();
+  const { t, toggleLocale, locale } = localeState;
 
   const loadFiles = useCallback(() => {
     fetchFiles().then(setFiles).catch(console.error);
@@ -61,6 +64,7 @@ export default function App() {
   };
 
   return (
+    <LocaleContext.Provider value={localeState}>
     <SensitiveProvider value={sensitive}>
     <div className={`flex h-dvh ${sensitive.hidden ? "" : "sensitive-revealed"}`} style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       {/* Mobile overlay */}
@@ -80,11 +84,14 @@ export default function App() {
             <BookOpen className="w-5 h-5 inline-block mr-1" /> Memory Viewer
           </button>
           <div className="flex items-center gap-1">
-            <button onClick={sensitive.toggle} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={sensitive.hidden ? "Show sensitive content" : "Hide sensitive content"}>
+            <button onClick={sensitive.toggle} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={sensitive.hidden ? t("sidebar.showSensitive") : t("sidebar.hideSensitive")}>
               {sensitive.hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
             </button>
-            <button onClick={toggleTheme} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+            <button onClick={toggleTheme} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={theme === "dark" ? t("sidebar.lightMode") : t("sidebar.darkMode")}>
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button onClick={toggleLocale} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={locale === "en" ? "切换到中文" : "Switch to English"}>
+              <Languages className="w-4 h-4" />
             </button>
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1" style={{ color: "var(--text-muted)" }}>
               <X className="w-5 h-5" />
@@ -98,7 +105,7 @@ export default function App() {
           className="search-trigger mx-3 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
         >
           <Search className="w-4 h-4" />
-          Search…
+          {t("sidebar.search")}
           <kbd className="ml-auto text-[10px] px-1.5 py-0.5 rounded border hidden sm:inline" style={{ background: "var(--bg-hover)", borderColor: "var(--border)" }}>
             ⌘K
           </kbd>
@@ -111,7 +118,7 @@ export default function App() {
 
         {/* Footer */}
         <div className="sidebar-footer px-4 py-2.5 border-t text-xs">
-          Silicon Dawn · Memory Viewer
+          {t("sidebar.footer")}
         </div>
       </aside>
 
@@ -123,7 +130,7 @@ export default function App() {
             <Menu className="w-6 h-6" />
           </button>
           <span className="text-sm font-medium truncate">
-            {view === "file" ? activeFile : "Dashboard"}
+            {view === "file" ? activeFile : t("dashboard.title")}
           </span>
           <button onClick={sensitive.toggle} className="ml-auto p-1" style={{ color: "var(--text-muted)" }}>
             {sensitive.hidden ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -153,5 +160,6 @@ export default function App() {
       )}
     </div>
     </SensitiveProvider>
+    </LocaleContext.Provider>
   );
 }

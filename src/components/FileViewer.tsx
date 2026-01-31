@@ -5,6 +5,8 @@ import remarkFrontmatter from "remark-frontmatter";
 import { fetchFile, saveFile } from "../api";
 import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy } from "lucide-react";
 import { SensitiveText } from "./SensitiveMask";
+import { useLocale } from "../hooks/useLocale";
+import { MarkdownEditor } from "./MarkdownEditor";
 
 /** Extract YAML front matter and return { meta, body } */
 function parseFrontMatter(raw: string): { meta: Record<string, string> | null; body: string } {
@@ -35,6 +37,7 @@ function maskChildren(children: React.ReactNode): React.ReactNode {
 
 /** Code block with copy button */
 function CodeBlock({ className, children, ...props }: any) {
+  const { t } = useLocale();
   const [copied, setCopied] = useState(false);
   const isBlock = className?.startsWith("language-");
   if (!isBlock) {
@@ -49,7 +52,7 @@ function CodeBlock({ className, children, ...props }: any) {
       <button
         className="code-copy-btn"
         onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
-        title="Copy"
+        title={t("file.copy")}
       >
         {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
       </button>
@@ -94,13 +97,13 @@ interface FileViewerProps {
 }
 
 export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps) {
+  const { t } = useLocale();
   const [content, setContent] = useState("");
   const [editContent, setEditContent] = useState("");
   const [mtime, setMtime] = useState("");
   const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
-  const editorRef = useRef<HTMLTextAreaElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
@@ -113,7 +116,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
         setEditContent(data.content);
         setMtime(data.mtime);
       })
-      .catch(() => showToast("Failed to load"))
+      .catch(() => showToast(t("file.failedToLoad")))
       .finally(() => setLoading(false));
   }, [filePath, refreshKey]);
 
@@ -131,34 +134,26 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
         setContent(editContent);
         setMtime(result.mtime);
         setEditing(false);
-        showToast("Saved");
+        showToast(t("file.saved"));
       }
     } catch {
-      showToast("Save failed");
+      showToast(t("file.saveFailed"));
     }
   }, [filePath, editContent]);
 
   const handleCancel = () => {
-    if (hasChanges && !confirm("Discard unsaved changes?")) return;
+    if (hasChanges && !confirm(t("file.discardChanges"))) return;
     setEditContent(content);
     setEditing(false);
   };
 
+  const isDark = useMemo(() => {
+    return document.documentElement.classList.contains("dark");
+  }, [editing]);
+
   const handleEdit = () => {
     setEditing(true);
-    setTimeout(() => editorRef.current?.focus(), 50);
   };
-
-  useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "s" && editing) {
-        e.preventDefault();
-        handleSave();
-      }
-    };
-    window.addEventListener("keydown", handler);
-    return () => window.removeEventListener("keydown", handler);
-  }, [editing, handleSave]);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -189,7 +184,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
     return (
       <div className="flex items-center justify-center h-full" style={{ color: "var(--text-faint)" }}>
         <div className="w-5 h-5 border-2 border-t-blue-400 rounded-full animate-spin mr-3" style={{ borderColor: "var(--border)" }} />
-        Loading…
+        {t("file.loading")}
       </div>
     );
   }
@@ -208,21 +203,21 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
           <span className="text-xs hidden sm:flex gap-2" style={{ color: "var(--text-faint)" }}>
             <span>{fileStats.sizeStr}</span>
             <span>·</span>
-            <span>{fileStats.words} words</span>
+            <span>{fileStats.words} {t("file.words")}</span>
           </span>
           <div className="flex gap-2">
           {editing ? (
             <>
               <button onClick={handleSave} className="btn-primary text-sm flex items-center gap-1">
-                <Save className="w-3.5 h-3.5" /> Save
+                <Save className="w-3.5 h-3.5" /> {t("file.save")}
               </button>
               <button onClick={handleCancel} className="btn-secondary text-sm flex items-center gap-1">
-                <X className="w-3.5 h-3.5" /> Cancel
+                <X className="w-3.5 h-3.5" /> {t("file.cancel")}
               </button>
             </>
           ) : (
             <button onClick={handleEdit} className="btn-secondary text-sm flex items-center gap-1">
-              <Pencil className="w-3.5 h-3.5" /> Edit
+              <Pencil className="w-3.5 h-3.5" /> {t("file.edit")}
             </button>
           )}
           </div>
@@ -232,22 +227,11 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 sm:p-6 relative" ref={contentRef} onScroll={handleScroll}>
         {editing ? (
-          <textarea
-            ref={editorRef}
+          <MarkdownEditor
             value={editContent}
-            onChange={(e) => setEditContent(e.target.value)}
-            className="editor-textarea"
-            style={{ minHeight: "100%" }}
-            onKeyDown={(e) => {
-              if (e.key === "Tab") {
-                e.preventDefault();
-                const t = e.currentTarget;
-                const s = t.selectionStart;
-                const end = t.selectionEnd;
-                setEditContent(editContent.substring(0, s) + "  " + editContent.substring(end));
-                setTimeout(() => { t.selectionStart = t.selectionEnd = s + 2; }, 0);
-              }
-            }}
+            onChange={setEditContent}
+            onSave={handleSave}
+            dark={isDark}
           />
         ) : (
           <article className="markdown-body max-w-3xl mx-auto">
@@ -290,7 +274,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
 
       {/* Scroll to top */}
       {showScrollTop && !editing && (
-        <button onClick={scrollToTop} className="scroll-top-btn" title="Back to top">
+        <button onClick={scrollToTop} className="scroll-top-btn" title={t("file.backToTop")}>
           <ArrowUp className="w-5 h-5" />
         </button>
       )}
