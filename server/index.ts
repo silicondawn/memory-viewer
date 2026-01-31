@@ -252,6 +252,35 @@ app.get("/api/system", (_req, res) => {
 });
 
 // ---------------------------------------------------------------------------
+// Gateway Chat Proxy (avoid CORS for frontend)
+// ---------------------------------------------------------------------------
+app.post("/api/gateway/chat", async (req, res) => {
+  const { gatewayUrl, token, messages } = req.body;
+  if (!gatewayUrl || !token || !messages) {
+    return void res.status(400).json({ error: "Missing gatewayUrl, token, or messages" });
+  }
+  try {
+    const url = `${gatewayUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ model: "default", messages }),
+    });
+    if (!resp.ok) {
+      const text = await resp.text();
+      return void res.status(resp.status).json({ error: text });
+    }
+    const data = await resp.json();
+    res.json(data);
+  } catch (err: any) {
+    res.status(502).json({ error: err.message || "Gateway request failed" });
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Static file serving (production)
 // ---------------------------------------------------------------------------
 if (fs.existsSync(STATIC_DIR)) {

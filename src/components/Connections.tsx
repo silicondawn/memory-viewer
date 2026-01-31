@@ -2,6 +2,7 @@ import { useState } from "react";
 import { type BotConnection } from "../hooks/useConnections";
 import { Network, Plus, Trash2, Edit3, Check, X, RefreshCw } from "lucide-react";
 import { useLocale } from "../hooks/useLocale";
+import { BootstrapWizard } from "./BootstrapWizard";
 
 interface ConnectionsProps {
   connections: BotConnection[];
@@ -14,34 +15,73 @@ interface ConnectionsProps {
   onRefresh: () => void;
 }
 
+type ConnMode = "direct" | "gateway";
+
+interface GatewayBootstrap {
+  name: string;
+  gatewayUrl: string;
+  token: string;
+  mvPort: number;
+}
+
 export function Connections({ connections, statuses, activeId, onAdd, onUpdate, onRemove, onSwitch, onRefresh }: ConnectionsProps) {
   const { t } = useLocale();
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState<string | null>(null);
+  const [mode, setMode] = useState<ConnMode>("direct");
   const [form, setForm] = useState({ name: "", url: "", token: "" });
+  const [gwForm, setGwForm] = useState({ name: "", gatewayUrl: "", token: "", mvPort: "8901" });
+  const [bootstrap, setBootstrap] = useState<GatewayBootstrap | null>(null);
 
   const startAdd = () => {
     setForm({ name: "", url: "", token: "" });
+    setGwForm({ name: "", gatewayUrl: "", token: "", mvPort: "8901" });
     setEditId(null);
+    setMode("direct");
     setShowForm(true);
   };
 
   const startEdit = (conn: BotConnection) => {
     setForm({ name: conn.name, url: conn.url, token: conn.token || "" });
     setEditId(conn.id);
+    setMode("direct");
     setShowForm(true);
   };
 
   const save = () => {
-    if (!form.name.trim() || !form.url.trim()) return;
-    if (editId) {
-      onUpdate(editId, { name: form.name.trim(), url: form.url.trim(), token: form.token.trim() || undefined });
+    if (mode === "direct") {
+      if (!form.name.trim() || !form.url.trim()) return;
+      if (editId) {
+        onUpdate(editId, { name: form.name.trim(), url: form.url.trim(), token: form.token.trim() || undefined });
+      } else {
+        onAdd({ name: form.name.trim(), url: form.url.trim(), token: form.token.trim() || undefined });
+      }
+      setShowForm(false);
+      setEditId(null);
+      setTimeout(onRefresh, 500);
     } else {
-      onAdd({ name: form.name.trim(), url: form.url.trim(), token: form.token.trim() || undefined });
+      // Gateway mode — start bootstrap
+      if (!gwForm.name.trim() || !gwForm.gatewayUrl.trim() || !gwForm.token.trim()) return;
+      setBootstrap({
+        name: gwForm.name.trim(),
+        gatewayUrl: gwForm.gatewayUrl.trim(),
+        token: gwForm.token.trim(),
+        mvPort: parseInt(gwForm.mvPort) || 8901,
+      });
+      setShowForm(false);
     }
-    setShowForm(false);
-    setEditId(null);
+  };
+
+  const handleBootstrapComplete = (mvUrl: string) => {
+    if (!bootstrap) return;
+    onAdd({ name: bootstrap.name, url: mvUrl });
     setTimeout(onRefresh, 500);
+  };
+
+  const inputStyle = {
+    background: "var(--bg-hover)",
+    color: "var(--text-primary)",
+    border: "1px solid var(--border)",
   };
 
   return (
@@ -60,38 +100,112 @@ export function Connections({ connections, statuses, activeId, onAdd, onUpdate, 
         </div>
       </div>
 
+      {/* Bootstrap Wizard */}
+      {bootstrap && (
+        <BootstrapWizard
+          name={bootstrap.name}
+          gatewayUrl={bootstrap.gatewayUrl}
+          token={bootstrap.token}
+          mvPort={bootstrap.mvPort}
+          onComplete={handleBootstrapComplete}
+          onCancel={() => setBootstrap(null)}
+        />
+      )}
+
       {/* Add/Edit form */}
       {showForm && (
         <div className="rounded-xl p-5 space-y-3" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
-          <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>
-            {editId ? t("connections.edit") : t("connections.addNew")}
-          </h3>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <input
-              className="px-3 py-2 rounded-lg text-sm"
-              style={{ background: "var(--bg-hover)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
-              placeholder={t("connections.namePlaceholder")}
-              value={form.name}
-              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            />
-            <input
-              className="px-3 py-2 rounded-lg text-sm"
-              style={{ background: "var(--bg-hover)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
-              placeholder={t("connections.urlPlaceholder")}
-              value={form.url}
-              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-            />
-            <input
-              className="px-3 py-2 rounded-lg text-sm"
-              style={{ background: "var(--bg-hover)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
-              placeholder={t("connections.tokenPlaceholder")}
-              value={form.token}
-              onChange={(e) => setForm((f) => ({ ...f, token: e.target.value }))}
-            />
+          <div className="flex items-center justify-between">
+            <h3 className="font-semibold" style={{ color: "var(--text-primary)" }}>
+              {editId ? t("connections.edit") : t("connections.addNew")}
+            </h3>
+            {!editId && (
+              <div className="flex rounded-lg overflow-hidden text-xs" style={{ border: "1px solid var(--border)" }}>
+                <button
+                  className="px-3 py-1.5 transition-colors"
+                  style={{
+                    background: mode === "direct" ? "var(--accent)" : "var(--bg-hover)",
+                    color: mode === "direct" ? "#fff" : "var(--text-secondary)",
+                  }}
+                  onClick={() => setMode("direct")}
+                >
+                  {t("connections.modeDirect")}
+                </button>
+                <button
+                  className="px-3 py-1.5 transition-colors"
+                  style={{
+                    background: mode === "gateway" ? "var(--accent)" : "var(--bg-hover)",
+                    color: mode === "gateway" ? "#fff" : "var(--text-secondary)",
+                  }}
+                  onClick={() => setMode("gateway")}
+                >
+                  {t("connections.modeGateway")}
+                </button>
+              </div>
+            )}
           </div>
+
+          {mode === "direct" ? (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <input
+                className="px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+                placeholder={t("connections.namePlaceholder")}
+                value={form.name}
+                onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              />
+              <input
+                className="px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+                placeholder={t("connections.urlPlaceholder")}
+                value={form.url}
+                onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+              />
+              <input
+                className="px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+                placeholder={t("connections.tokenPlaceholder")}
+                value={form.token}
+                onChange={(e) => setForm((f) => ({ ...f, token: e.target.value }))}
+              />
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <input
+                className="px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+                placeholder={t("connections.namePlaceholder")}
+                value={gwForm.name}
+                onChange={(e) => setGwForm((f) => ({ ...f, name: e.target.value }))}
+              />
+              <input
+                className="px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+                placeholder={t("connections.gatewayUrlPlaceholder")}
+                value={gwForm.gatewayUrl}
+                onChange={(e) => setGwForm((f) => ({ ...f, gatewayUrl: e.target.value }))}
+              />
+              <input
+                className="px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+                type="password"
+                placeholder={t("connections.gatewayTokenPlaceholder")}
+                value={gwForm.token}
+                onChange={(e) => setGwForm((f) => ({ ...f, token: e.target.value }))}
+              />
+              <input
+                className="px-3 py-2 rounded-lg text-sm"
+                style={inputStyle}
+                placeholder={t("connections.mvPortPlaceholder")}
+                value={gwForm.mvPort}
+                onChange={(e) => setGwForm((f) => ({ ...f, mvPort: e.target.value }))}
+              />
+            </div>
+          )}
+
           <div className="flex gap-2">
             <button onClick={save} className="btn-secondary text-sm flex items-center gap-1">
-              <Check className="w-3.5 h-3.5" /> {t("connections.save")}
+              <Check className="w-3.5 h-3.5" /> {mode === "gateway" && !editId ? t("bootstrap.install") : t("connections.save")}
             </button>
             <button onClick={() => { setShowForm(false); setEditId(null); }} className="btn-secondary text-sm flex items-center gap-1">
               <X className="w-3.5 h-3.5" /> {t("connections.cancel")}
