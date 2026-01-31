@@ -128,45 +128,101 @@ body {
   border-color: var(--text-faint);
 }
 
-/* Markdown */
+/* Markdown — optimized for readability */
 .markdown-body {
   color: var(--text-secondary);
-  line-height: 1.7;
+  line-height: 1.85;
+  letter-spacing: 0.01em;
+  font-size: 15px;
 }
-.markdown-body h1 { @apply text-2xl font-bold pb-2 mb-4 mt-8 first:mt-0; color: var(--text-primary); border-bottom: 1px solid var(--border); }
-.markdown-body h2 { @apply text-xl font-semibold pb-1.5 mb-3 mt-6; color: var(--text-primary); border-bottom: 1px solid var(--border-light); }
-.markdown-body h3 { @apply text-lg font-semibold mb-2 mt-5; color: var(--text-primary); }
-.markdown-body h4 { @apply text-base font-semibold mb-2 mt-4; color: var(--text-secondary); }
-.markdown-body p { @apply mb-3; }
-.markdown-body ul { @apply list-disc pl-6 mb-3 space-y-0.5; }
-.markdown-body ol { @apply list-decimal pl-6 mb-3 space-y-0.5; }
-.markdown-body li { color: var(--text-secondary); }
+.markdown-body h1 {
+  @apply text-2xl font-bold pb-3 mb-5 mt-10 first:mt-0;
+  color: var(--text-primary);
+  border-bottom: 2px solid var(--border);
+  line-height: 1.3;
+}
+.markdown-body h2 {
+  @apply text-xl font-semibold pb-2 mb-4 mt-8;
+  color: var(--text-primary);
+  border-bottom: 1px solid var(--border-light);
+  line-height: 1.35;
+}
+.markdown-body h3 {
+  @apply text-lg font-semibold mb-3 mt-6;
+  color: var(--text-primary);
+  line-height: 1.4;
+}
+.markdown-body h4 {
+  @apply text-base font-semibold mb-2 mt-5;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+.markdown-body p {
+  @apply mb-4;
+  line-height: 1.85;
+}
+.markdown-body ul { @apply list-disc pl-6 mb-4 space-y-1.5; }
+.markdown-body ol { @apply list-decimal pl-6 mb-4 space-y-1.5; }
+.markdown-body li {
+  color: var(--text-secondary);
+  line-height: 1.75;
+}
+.markdown-body li > ul,
+.markdown-body li > ol {
+  @apply mt-1.5 mb-0;
+}
 .markdown-body code {
   background: var(--code-bg);
   color: var(--code-text);
-  @apply px-1.5 py-0.5 rounded text-[0.9em] font-mono;
+  @apply px-1.5 py-0.5 rounded text-[0.85em] font-mono;
+  font-weight: 500;
 }
 .markdown-body pre {
   background: var(--pre-bg);
   border: 1px solid var(--pre-border);
-  @apply rounded-lg p-4 mb-4 overflow-x-auto text-sm;
+  @apply rounded-xl p-4 mb-5 overflow-x-auto text-sm;
 }
-.markdown-body pre code { background: transparent; padding: 0; color: var(--pre-text); }
+.markdown-body pre code { background: transparent; padding: 0; color: var(--pre-text); font-weight: normal; }
 .markdown-body blockquote {
   border-left: 4px solid var(--blockquote-border);
-  padding-left: 1rem;
+  padding: 0.75rem 1rem;
   color: var(--blockquote-text);
-  @apply italic my-4;
+  background: var(--bg-hover);
+  border-radius: 0 0.5rem 0.5rem 0;
+  @apply italic my-5;
 }
-.markdown-body a { color: var(--link); text-decoration: underline; text-decoration-color: rgba(59,130,246,0.3); transition: all 0.15s; }
-.markdown-body a:hover { color: var(--link-hover); text-decoration-color: rgba(59,130,246,0.5); }
-.markdown-body table { @apply w-full border-collapse mb-4 text-sm; }
-.markdown-body th { background: var(--th-bg); border: 1px solid var(--border); @apply px-3 py-2 text-left font-semibold; color: var(--text-secondary); }
-.markdown-body td { border: 1px solid var(--border); @apply px-3 py-2; color: var(--text-secondary); }
+.markdown-body blockquote p:last-child { @apply mb-0; }
+.markdown-body a {
+  color: var(--link);
+  text-decoration: underline;
+  text-decoration-color: rgba(59,130,246,0.3);
+  text-underline-offset: 3px;
+  transition: all 0.15s;
+}
+.markdown-body a:hover { color: var(--link-hover); text-decoration-color: rgba(59,130,246,0.6); }
+.markdown-body table { @apply w-full border-collapse mb-5 text-sm; }
+.markdown-body th {
+  background: var(--th-bg);
+  border: 1px solid var(--border);
+  @apply px-4 py-2.5 text-left font-semibold;
+  color: var(--text-secondary);
+}
+.markdown-body td {
+  border: 1px solid var(--border);
+  @apply px-4 py-2.5;
+  color: var(--text-secondary);
+  line-height: 1.65;
+}
 .markdown-body tr:hover td { background: var(--tr-hover); }
-.markdown-body hr { border-color: var(--border); @apply my-6; }
+.markdown-body hr { border-color: var(--border); @apply my-8; }
 .markdown-body strong { color: var(--text-primary); @apply font-semibold; }
-.markdown-body img { @apply rounded-lg max-w-full; }
+.markdown-body em { color: var(--text-muted); }
+.markdown-body img { @apply rounded-lg max-w-full my-2; }
+/* Checkbox lists */
+.markdown-body input[type="checkbox"] {
+  @apply mr-2 rounded;
+  accent-color: #3b82f6;
+}
 
 /* Editor */
 .editor-textarea {

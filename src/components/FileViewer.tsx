@@ -37,8 +37,8 @@ function maskChildren(children: React.ReactNode): React.ReactNode {
 
 /** Code block with copy button */
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { oneDark } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { vs } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 function CodeBlock({ className, children, ...props }: any) {
   const { t } = useLocale();
@@ -63,17 +63,28 @@ function CodeBlock({ className, children, ...props }: any) {
         {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
       </button>
       <SyntaxHighlighter
-        style={isDark ? oneDark : oneLight}
+        style={isDark ? vscDarkPlus : vs}
         language={match[1]}
+        showLineNumbers
         PreTag="div"
         customStyle={{
           margin: 0,
-          borderRadius: "0.5rem",
-          fontSize: "0.875rem",
+          borderRadius: "0.75rem",
+          fontSize: "0.85rem",
+          lineHeight: "1.7",
           border: `1px solid var(--pre-border)`,
+          padding: "1rem",
         }}
         codeTagProps={{
           style: { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" },
+        }}
+        lineNumberStyle={{
+          minWidth: "2.5em",
+          paddingRight: "1em",
+          color: "var(--text-faint)",
+          opacity: 0.5,
+          fontSize: "0.8rem",
+          userSelect: "none",
         }}
       >
         {text}
