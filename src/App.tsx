@@ -5,6 +5,8 @@ import { FileViewer } from "./components/FileViewer";
 import { Dashboard } from "./components/Dashboard";
 import { SearchPanel } from "./components/SearchPanel";
 import { useWebSocket } from "./hooks/useWebSocket";
+import { useTheme } from "./hooks/useTheme";
+import { BookOpen, X, Menu, Search, Sun, Moon } from "lucide-react";
 
 export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -13,6 +15,7 @@ export default function App() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const { theme, toggle: toggleTheme } = useTheme();
 
   const loadFiles = useCallback(() => {
     fetchFiles().then(setFiles).catch(console.error);
@@ -56,38 +59,41 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-dvh bg-gray-950 text-gray-100">
+    <div className="flex h-dvh" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
-        <div className="fixed inset-0 z-30 bg-black/50 lg:hidden" onClick={() => setSidebarOpen(false)} />
+        <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
       {/* Sidebar */}
       <aside
-        className={`fixed z-40 lg:static lg:z-auto inset-y-0 left-0 w-72 bg-gray-900 border-r border-gray-800 flex flex-col shrink-0 transition-transform duration-200 ${
+        className={`sidebar fixed z-40 lg:static lg:z-auto inset-y-0 left-0 w-72 border-r flex flex-col shrink-0 transition-transform duration-200 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-4 py-3.5 border-b border-gray-800">
-          <button onClick={goHome} className="text-lg font-bold text-white hover:text-blue-400 transition-colors">
-            📝 Memory Viewer
+        <div className="sidebar-header flex items-center justify-between px-4 py-3.5 border-b">
+          <button onClick={goHome} className="text-lg font-bold hover:text-blue-400 transition-colors" style={{ color: "var(--text-primary)" }}>
+            <BookOpen className="w-5 h-5 inline-block mr-1" /> Memory Viewer
           </button>
-          <button onClick={() => setSidebarOpen(false)} className="lg:hidden text-gray-400 hover:text-white p-1">
-            ✕
-          </button>
+          <div className="flex items-center gap-1">
+            <button onClick={toggleTheme} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
+              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+            </button>
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1" style={{ color: "var(--text-muted)" }}>
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Search trigger */}
         <button
           onClick={() => setSearchOpen(true)}
-          className="mx-3 mt-3 flex items-center gap-2 px-3 py-2 bg-gray-800/50 border border-gray-700/50 rounded-lg text-sm text-gray-500 hover:text-gray-300 hover:border-gray-600 transition-colors"
+          className="search-trigger mx-3 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
         >
-          <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <Search className="w-4 h-4" />
           Search…
-          <kbd className="ml-auto text-[10px] bg-gray-700/50 px-1.5 py-0.5 rounded border border-gray-700 hidden sm:inline">
+          <kbd className="ml-auto text-[10px] px-1.5 py-0.5 rounded border hidden sm:inline" style={{ background: "var(--bg-hover)", borderColor: "var(--border)" }}>
             ⌘K
           </kbd>
         </button>
@@ -98,7 +104,7 @@ export default function App() {
         </div>
 
         {/* Footer */}
-        <div className="px-4 py-2.5 border-t border-gray-800 text-xs text-gray-600">
+        <div className="sidebar-footer px-4 py-2.5 border-t text-xs">
           Silicon Dawn · Memory Viewer
         </div>
       </aside>
@@ -106,19 +112,18 @@ export default function App() {
       {/* Main content */}
       <main className="flex-1 flex flex-col min-w-0">
         {/* Mobile top bar */}
-        <div className="lg:hidden flex items-center gap-3 px-4 py-2.5 border-b border-gray-800 bg-gray-900/80 backdrop-blur shrink-0">
-          <button onClick={() => setSidebarOpen(true)} className="text-gray-400 hover:text-white">
-            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+        <div className="lg:hidden flex items-center gap-3 px-4 py-2.5 border-b backdrop-blur shrink-0" style={{ borderColor: "var(--border)", background: "var(--bg-secondary)" }}>
+          <button onClick={() => setSidebarOpen(true)} style={{ color: "var(--text-muted)" }}>
+            <Menu className="w-6 h-6" />
           </button>
           <span className="text-sm font-medium truncate">
             {view === "file" ? activeFile : "Dashboard"}
           </span>
-          <button onClick={() => setSearchOpen(true)} className="ml-auto text-gray-400 hover:text-white">
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+          <button onClick={toggleTheme} className="ml-auto p-1" style={{ color: "var(--text-muted)" }}>
+            {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+          </button>
+          <button onClick={() => setSearchOpen(true)} style={{ color: "var(--text-muted)" }}>
+            <Search className="w-5 h-5" />
           </button>
         </div>
 

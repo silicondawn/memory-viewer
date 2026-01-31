@@ -1,9 +1,73 @@
 @import "tailwindcss";
 
-/* Base */
+/* ===== Light / Dark base ===== */
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --bg-hover: rgba(0,0,0,0.04);
+  --bg-active: rgba(59,130,246,0.08);
+  --border: #e2e8f0;
+  --border-light: #f1f5f9;
+  --text-primary: #0f172a;
+  --text-secondary: #334155;
+  --text-muted: #64748b;
+  --text-faint: #94a3b8;
+  --code-bg: #f1f5f9;
+  --code-text: #059669;
+  --pre-bg: #f8fafc;
+  --pre-border: #e2e8f0;
+  --pre-text: #334155;
+  --link: #2563eb;
+  --link-hover: #1d4ed8;
+  --blockquote-border: rgba(59,130,246,0.3);
+  --blockquote-text: #64748b;
+  --th-bg: #f1f5f9;
+  --tr-hover: rgba(0,0,0,0.02);
+  --scrollbar-thumb: rgba(0,0,0,0.15);
+  --scrollbar-hover: rgba(0,0,0,0.25);
+  --toast-bg: #1e293b;
+  --toast-text: #fff;
+  --editor-bg: rgba(241,245,249,0.5);
+  --ring: rgba(59,130,246,0.5);
+}
+
+.dark {
+  --bg-primary: #030712;
+  --bg-secondary: #111827;
+  --bg-tertiary: #1f2937;
+  --bg-hover: rgba(255,255,255,0.03);
+  --bg-active: rgba(59,130,246,0.15);
+  --border: #1f2937;
+  --border-light: rgba(31,41,55,0.5);
+  --text-primary: #f9fafb;
+  --text-secondary: #e5e7eb;
+  --text-muted: #9ca3af;
+  --text-faint: #6b7280;
+  --code-bg: #1f2937;
+  --code-text: #34d399;
+  --pre-bg: #111827;
+  --pre-border: #1f2937;
+  --pre-text: #d1d5db;
+  --link: #60a5fa;
+  --link-hover: #93bbfd;
+  --blockquote-border: rgba(59,130,246,0.4);
+  --blockquote-text: #9ca3af;
+  --th-bg: rgba(31,41,55,0.5);
+  --tr-hover: rgba(17,24,39,0.5);
+  --scrollbar-thumb: rgba(107,114,128,0.5);
+  --scrollbar-hover: rgba(107,114,128,0.7);
+  --toast-bg: #1f2937;
+  --toast-text: #fff;
+  --editor-bg: rgba(17,24,39,0.5);
+  --ring: rgba(59,130,246,0.5);
+}
+
 body {
-  @apply bg-gray-950 text-gray-100 antialiased;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* Buttons */
@@ -11,52 +75,118 @@ body {
   @apply px-3.5 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-medium rounded-lg transition-colors;
 }
 .btn-secondary {
-  @apply px-3.5 py-1.5 bg-gray-800 hover:bg-gray-700 border border-gray-700 text-gray-200 rounded-lg transition-colors;
+  padding: 6px 14px;
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  border-radius: 8px;
+  transition: all 0.15s;
+}
+.btn-secondary:hover {
+  background: var(--bg-hover);
+  border-color: var(--text-faint);
+}
+
+/* Sidebar */
+.sidebar {
+  background: var(--bg-secondary);
+  border-color: var(--border);
+}
+.sidebar-header {
+  border-color: var(--border);
+}
+.sidebar-footer {
+  border-color: var(--border);
+  color: var(--text-faint);
+}
+.sidebar-section-title {
+  color: var(--text-faint);
+}
+.sidebar-item {
+  color: var(--text-muted);
+  transition: all 0.15s;
+}
+.sidebar-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-secondary);
+}
+.sidebar-item-active {
+  background: var(--bg-active);
+  color: var(--link);
+}
+.search-trigger {
+  background: var(--bg-hover);
+  border: 1px solid var(--border-light);
+  color: var(--text-faint);
+}
+.search-trigger:hover {
+  color: var(--text-muted);
+  border-color: var(--text-faint);
 }
 
 /* Markdown */
 .markdown-body {
-  @apply text-gray-200 leading-relaxed;
+  color: var(--text-secondary);
+  line-height: 1.7;
 }
-.markdown-body h1 { @apply text-2xl font-bold text-white border-b border-gray-800 pb-2 mb-4 mt-8 first:mt-0; }
-.markdown-body h2 { @apply text-xl font-semibold text-white border-b border-gray-800/50 pb-1.5 mb-3 mt-6; }
-.markdown-body h3 { @apply text-lg font-semibold text-gray-100 mb-2 mt-5; }
-.markdown-body h4 { @apply text-base font-semibold text-gray-200 mb-2 mt-4; }
+.markdown-body h1 { @apply text-2xl font-bold pb-2 mb-4 mt-8 first:mt-0; color: var(--text-primary); border-bottom: 1px solid var(--border); }
+.markdown-body h2 { @apply text-xl font-semibold pb-1.5 mb-3 mt-6; color: var(--text-primary); border-bottom: 1px solid var(--border-light); }
+.markdown-body h3 { @apply text-lg font-semibold mb-2 mt-5; color: var(--text-primary); }
+.markdown-body h4 { @apply text-base font-semibold mb-2 mt-4; color: var(--text-secondary); }
 .markdown-body p { @apply mb-3; }
 .markdown-body ul { @apply list-disc pl-6 mb-3 space-y-0.5; }
 .markdown-body ol { @apply list-decimal pl-6 mb-3 space-y-0.5; }
-.markdown-body li { @apply text-gray-300; }
+.markdown-body li { color: var(--text-secondary); }
 .markdown-body code {
-  @apply bg-gray-800 text-emerald-400 px-1.5 py-0.5 rounded text-[0.9em] font-mono;
+  background: var(--code-bg);
+  color: var(--code-text);
+  @apply px-1.5 py-0.5 rounded text-[0.9em] font-mono;
 }
 .markdown-body pre {
-  @apply bg-gray-900 border border-gray-800 rounded-lg p-4 mb-4 overflow-x-auto text-sm;
+  background: var(--pre-bg);
+  border: 1px solid var(--pre-border);
+  @apply rounded-lg p-4 mb-4 overflow-x-auto text-sm;
 }
-.markdown-body pre code { @apply bg-transparent p-0 text-gray-300; }
+.markdown-body pre code { background: transparent; padding: 0; color: var(--pre-text); }
 .markdown-body blockquote {
-  @apply border-l-4 border-blue-500/40 pl-4 text-gray-400 italic my-4;
+  border-left: 4px solid var(--blockquote-border);
+  padding-left: 1rem;
+  color: var(--blockquote-text);
+  @apply italic my-4;
 }
-.markdown-body a { @apply text-blue-400 hover:text-blue-300 underline decoration-blue-400/30 hover:decoration-blue-300/50 transition-colors; }
+.markdown-body a { color: var(--link); text-decoration: underline; text-decoration-color: rgba(59,130,246,0.3); transition: all 0.15s; }
+.markdown-body a:hover { color: var(--link-hover); text-decoration-color: rgba(59,130,246,0.5); }
 .markdown-body table { @apply w-full border-collapse mb-4 text-sm; }
-.markdown-body th { @apply bg-gray-800/50 border border-gray-800 px-3 py-2 text-left font-semibold text-gray-200; }
-.markdown-body td { @apply border border-gray-800 px-3 py-2 text-gray-300; }
-.markdown-body tr:hover td { @apply bg-gray-900/50; }
-.markdown-body hr { @apply border-gray-800 my-6; }
-.markdown-body strong { @apply text-white font-semibold; }
+.markdown-body th { background: var(--th-bg); border: 1px solid var(--border); @apply px-3 py-2 text-left font-semibold; color: var(--text-secondary); }
+.markdown-body td { border: 1px solid var(--border); @apply px-3 py-2; color: var(--text-secondary); }
+.markdown-body tr:hover td { background: var(--tr-hover); }
+.markdown-body hr { border-color: var(--border); @apply my-6; }
+.markdown-body strong { color: var(--text-primary); @apply font-semibold; }
 .markdown-body img { @apply rounded-lg max-w-full; }
 
 /* Editor */
 .editor-textarea {
-  @apply w-full h-full bg-gray-900/50 text-gray-100 font-mono text-sm p-4 border border-gray-800 rounded-lg resize-none;
+  background: var(--editor-bg);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+  @apply w-full h-full font-mono text-sm p-4 rounded-lg resize-none;
   tab-size: 2;
 }
 .editor-textarea:focus {
-  @apply outline-none ring-2 ring-blue-500/50 border-blue-500/50;
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ring);
+  border-color: var(--ring);
 }
 
 /* Toast */
 .toast {
-  @apply fixed bottom-6 right-6 bg-gray-800 text-white px-4 py-2.5 rounded-xl shadow-2xl border border-gray-700 z-50 text-sm;
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  background: var(--toast-bg);
+  color: var(--toast-text);
+  @apply px-4 py-2.5 rounded-xl shadow-2xl z-50 text-sm;
+  border: 1px solid var(--border);
   animation: toast-in 0.3s ease-out;
 }
 @keyframes toast-in {
@@ -66,5 +196,6 @@ body {
 
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
-::-webkit-scrollbar-track { @apply bg-transparent; }
-::-webkit-scrollbar-thumb { @apply bg-gray-700/50 rounded-full hover:bg-gray-600/50; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 9999px; }
+::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
