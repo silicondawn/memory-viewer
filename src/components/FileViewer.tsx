@@ -37,8 +37,8 @@ function maskChildren(children: React.ReactNode): React.ReactNode {
 
 /** Code block with copy button */
 import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { vscDarkPlus } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { vs } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { materialOceanic } from "react-syntax-highlighter/dist/esm/styles/prism";
+import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
 
 function CodeBlock({ className, children, ...props }: any) {
   const { t } = useLocale();
@@ -63,7 +63,7 @@ function CodeBlock({ className, children, ...props }: any) {
         {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
       </button>
       <SyntaxHighlighter
-        style={isDark ? vscDarkPlus : vs}
+        style={isDark ? materialOceanic : oneLight}
         language={match[1]}
         showLineNumbers
         PreTag="div"

@@ -4,67 +4,89 @@
   --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
 }
 
-/* ===== Light / Dark base ===== */
-:root {
-  --bg-primary: #f8fafc;
+/* ===== Theme System ===== */
+/* Light default: Maple (warm, soft, nature-inspired) */
+:root, .theme-maple-light {
+  --bg-primary: #faf8f5;
   --bg-secondary: #ffffff;
-  --bg-tertiary: #f1f5f9;
-  --bg-hover: rgba(0,0,0,0.04);
-  --bg-active: rgba(59,130,246,0.08);
-  --border: #e2e8f0;
-  --border-light: #f1f5f9;
-  --text-primary: #0f172a;
-  --text-secondary: #334155;
-  --text-muted: #64748b;
-  --text-faint: #94a3b8;
-  --code-bg: #f1f5f9;
-  --code-text: #059669;
-  --pre-bg: #f8fafc;
-  --pre-border: #e2e8f0;
-  --pre-text: #334155;
-  --link: #2563eb;
-  --link-hover: #1d4ed8;
-  --blockquote-border: rgba(59,130,246,0.3);
-  --blockquote-text: #64748b;
-  --th-bg: #f1f5f9;
-  --tr-hover: rgba(0,0,0,0.02);
-  --scrollbar-thumb: rgba(0,0,0,0.15);
-  --scrollbar-hover: rgba(0,0,0,0.25);
-  --toast-bg: #1e293b;
+  --bg-tertiary: #f5f0eb;
+  --bg-hover: rgba(139,90,43,0.04);
+  --bg-active: rgba(180,83,9,0.08);
+  --border: #e8ddd0;
+  --border-light: #f0e8de;
+  --text-primary: #1c1410;
+  --text-secondary: #44362a;
+  --text-muted: #7c6a58;
+  --text-faint: #a89580;
+  --code-bg: #f5efe8;
+  --code-text: #9a3412;
+  --pre-bg: #faf6f1;
+  --pre-border: #e8ddd0;
+  --pre-text: #44362a;
+  --link: #b45309;
+  --link-hover: #92400e;
+  --blockquote-border: rgba(180,83,9,0.35);
+  --blockquote-text: #7c6a58;
+  --blockquote-bg: rgba(245,240,235,0.6);
+  --th-bg: #f5efe8;
+  --tr-hover: rgba(139,90,43,0.04);
+  --scrollbar-thumb: rgba(139,90,43,0.2);
+  --scrollbar-hover: rgba(139,90,43,0.35);
+  --toast-bg: #292017;
   --toast-text: #fff;
-  --editor-bg: rgba(241,245,249,0.5);
-  --ring: rgba(59,130,246,0.5);
+  --editor-bg: rgba(245,240,235,0.5);
+  --ring: rgba(180,83,9,0.4);
+  /* Markdown headings */
+  --md-h1: #78350f;
+  --md-h2: #92400e;
+  --md-h3: #a16207;
+  --md-h1-border: #d6c4a8;
+  --md-h2-border: #e8ddd0;
+  --md-strong: #1c1410;
+  --md-em: #92400e;
+  --md-hr: #d6c4a8;
 }
 
-.dark {
-  --bg-primary: #030712;
-  --bg-secondary: #111827;
-  --bg-tertiary: #1f2937;
-  --bg-hover: rgba(255,255,255,0.03);
-  --bg-active: rgba(59,130,246,0.15);
-  --border: #1f2937;
-  --border-light: rgba(31,41,55,0.5);
-  --text-primary: #f9fafb;
-  --text-secondary: #e5e7eb;
-  --text-muted: #9ca3af;
-  --text-faint: #6b7280;
-  --code-bg: #1f2937;
-  --code-text: #34d399;
-  --pre-bg: #111827;
-  --pre-border: #1f2937;
-  --pre-text: #d1d5db;
-  --link: #60a5fa;
-  --link-hover: #93bbfd;
-  --blockquote-border: rgba(59,130,246,0.4);
-  --blockquote-text: #9ca3af;
-  --th-bg: rgba(31,41,55,0.5);
-  --tr-hover: rgba(17,24,39,0.5);
-  --scrollbar-thumb: rgba(107,114,128,0.5);
-  --scrollbar-hover: rgba(107,114,128,0.7);
-  --toast-bg: #1f2937;
-  --toast-text: #fff;
-  --editor-bg: rgba(17,24,39,0.5);
-  --ring: rgba(59,130,246,0.5);
+/* Dark default: Material (Google Material Design inspired) */
+.dark, .theme-material-dark {
+  --bg-primary: #0f111a;
+  --bg-secondary: #1a1c2b;
+  --bg-tertiary: #242637;
+  --bg-hover: rgba(130,170,255,0.04);
+  --bg-active: rgba(130,170,255,0.12);
+  --border: #2a2d3e;
+  --border-light: rgba(42,45,62,0.6);
+  --text-primary: #eeffff;
+  --text-secondary: #b0bec5;
+  --text-muted: #78909c;
+  --text-faint: #546e7a;
+  --code-bg: #1d1f31;
+  --code-text: #c3e88d;
+  --pre-bg: #0f111a;
+  --pre-border: #2a2d3e;
+  --pre-text: #b0bec5;
+  --link: #82aaff;
+  --link-hover: #a6c4ff;
+  --blockquote-border: rgba(130,170,255,0.4);
+  --blockquote-text: #78909c;
+  --blockquote-bg: rgba(36,38,55,0.5);
+  --th-bg: rgba(36,38,55,0.6);
+  --tr-hover: rgba(15,17,26,0.5);
+  --scrollbar-thumb: rgba(84,110,122,0.5);
+  --scrollbar-hover: rgba(84,110,122,0.7);
+  --toast-bg: #242637;
+  --toast-text: #eeffff;
+  --editor-bg: rgba(15,17,26,0.6);
+  --ring: rgba(130,170,255,0.5);
+  /* Markdown headings */
+  --md-h1: #c792ea;
+  --md-h2: #82aaff;
+  --md-h3: #ffcb6b;
+  --md-h1-border: #3a3d52;
+  --md-h2-border: rgba(42,45,62,0.6);
+  --md-strong: #eeffff;
+  --md-em: #f78c6c;
+  --md-hr: #3a3d52;
 }
 
 body {
@@ -137,19 +159,19 @@ body {
 }
 .markdown-body h1 {
   @apply text-2xl font-bold pb-3 mb-5 mt-10 first:mt-0;
-  color: var(--text-primary);
-  border-bottom: 2px solid var(--border);
+  color: var(--md-h1, var(--text-primary));
+  border-bottom: 2px solid var(--md-h1-border, var(--border));
   line-height: 1.3;
 }
 .markdown-body h2 {
   @apply text-xl font-semibold pb-2 mb-4 mt-8;
-  color: var(--text-primary);
-  border-bottom: 1px solid var(--border-light);
+  color: var(--md-h2, var(--text-primary));
+  border-bottom: 1px solid var(--md-h2-border, var(--border-light));
   line-height: 1.35;
 }
 .markdown-body h3 {
   @apply text-lg font-semibold mb-3 mt-6;
-  color: var(--text-primary);
+  color: var(--md-h3, var(--text-primary));
   line-height: 1.4;
 }
 .markdown-body h4 {
@@ -187,7 +209,7 @@ body {
   border-left: 4px solid var(--blockquote-border);
   padding: 0.75rem 1rem;
   color: var(--blockquote-text);
-  background: var(--bg-hover);
+  background: var(--blockquote-bg, var(--bg-hover));
   border-radius: 0 0.5rem 0.5rem 0;
   @apply italic my-5;
 }
@@ -214,9 +236,9 @@ body {
   line-height: 1.65;
 }
 .markdown-body tr:hover td { background: var(--tr-hover); }
-.markdown-body hr { border-color: var(--border); @apply my-8; }
-.markdown-body strong { color: var(--text-primary); @apply font-semibold; }
-.markdown-body em { color: var(--text-muted); }
+.markdown-body hr { border-color: var(--md-hr, var(--border)); @apply my-8; }
+.markdown-body strong { color: var(--md-strong, var(--text-primary)); @apply font-semibold; }
+.markdown-body em { color: var(--md-em, var(--text-muted)); }
 .markdown-body img { @apply rounded-lg max-w-full my-2; }
 /* Checkbox lists */
 .markdown-body input[type="checkbox"] {
