@@ -45,15 +45,44 @@ function CodeBlock({ className, children, ...props }: any) {
   const { t } = useLocale();
   const [copied, setCopied] = useState(false);
   const match = /language-(\w+)/.exec(className || "");
-  const isBlock = !!match;
+  const text = String(children).replace(/\n$/, "");
+  const isBlock = !!match || text.includes("\n");
   if (!isBlock) {
     if (typeof children === "string") {
       return <code {...props}><SensitiveText>{children}</SensitiveText></code>;
     }
     return <code {...props}>{children}</code>;
   }
-  const text = String(children).replace(/\n$/, "");
   const isDark = document.documentElement.classList.contains("dark");
+  // Plain text code blocks (no language) - use simple <pre> for uniform background
+  if (!match) {
+    return (
+      <div className="relative group">
+        <button
+          className="code-copy-btn"
+          onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+          title={t("file.copy")}
+        >
+          {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+        </button>
+        <pre style={{
+          margin: 0,
+          borderRadius: "0.75rem",
+          fontSize: "0.85rem",
+          lineHeight: "1.7",
+          border: `1px solid var(--pre-border)`,
+          padding: "1rem",
+          background: "var(--pre-bg)",
+          color: "var(--pre-text)",
+          fontFamily: "Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace",
+          overflowX: "auto",
+          whiteSpace: "pre",
+        }}>
+          <code style={{ background: "transparent", fontFamily: "inherit" }}>{text}</code>
+        </pre>
+      </div>
+    );
+  }
   return (
     <div className="relative group">
       <button
@@ -67,7 +96,9 @@ function CodeBlock({ className, children, ...props }: any) {
         style={isDark ? materialOceanic : oneLight}
         language={match[1]}
         showLineNumbers
+        wrapLines
         PreTag="div"
+        lineProps={{ style: { background: "transparent" } }}
         customStyle={{
           margin: 0,
           borderRadius: "0.75rem",
@@ -75,9 +106,10 @@ function CodeBlock({ className, children, ...props }: any) {
           lineHeight: "1.7",
           border: `1px solid var(--pre-border)`,
           padding: "1rem",
+          background: "var(--pre-bg)",
         }}
         codeTagProps={{
-          style: { fontFamily: "'JetBrains Mono', 'Fira Code', monospace" },
+          style: { fontFamily: "'JetBrains Mono', 'Fira Code', monospace", background: "transparent" },
         }}
         lineNumberStyle={{
           minWidth: "2.5em",

@@ -287,6 +287,8 @@ body {
   @apply rounded-xl p-4 mb-5 overflow-x-auto text-sm;
 }
 .markdown-body pre code { background: transparent; padding: 0; color: var(--pre-text); font-weight: normal; }
+.markdown-body pre code span { background: transparent !important; }
+.markdown-body code[class*="language-"] { background: transparent !important; }
 .markdown-body blockquote {
   border-left: 4px solid var(--blockquote-border);
   padding: 0.75rem 1rem;
