@@ -1,43 +1,52 @@
 import { useEffect, useState, useCallback } from "react";
-import { fetchFiles, type FileNode } from "./api";
+import { fetchFiles, setBaseUrl, getBaseUrl, type FileNode } from "./api";
 import { FileTree } from "./components/FileTree";
 import { FileViewer } from "./components/FileViewer";
 import { Dashboard } from "./components/Dashboard";
 import { SearchPanel } from "./components/SearchPanel";
+import { Connections } from "./components/Connections";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
-import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages } from "lucide-react";
+import { useConnections } from "./hooks/useConnections";
+import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown } from "lucide-react";
 import { useLocaleState, LocaleContext } from "./hooks/useLocale";
 
 export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [activeFile, setActiveFile] = useState("");
-  const [view, setView] = useState<"dashboard" | "file">("dashboard");
+  const [view, setView] = useState<"dashboard" | "file" | "connections">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
+  const [botSelectorOpen, setBotSelectorOpen] = useState(false);
   const { theme, toggle: toggleTheme } = useTheme();
   const sensitive = useSensitiveState();
   const localeState = useLocaleState();
   const { t, toggleLocale, locale } = localeState;
+  const connState = useConnections();
+
+  // Sync baseUrl when active connection changes
+  useEffect(() => {
+    setBaseUrl(connState.active.url);
+  }, [connState.active]);
 
   const loadFiles = useCallback(() => {
     fetchFiles().then(setFiles).catch(console.error);
   }, []);
 
-  useEffect(() => { loadFiles(); }, [loadFiles]);
+  // Reload files when active connection changes
+  useEffect(() => { loadFiles(); }, [loadFiles, connState.active.id]);
 
   // Live reload via WebSocket
   useWebSocket((data) => {
     if (data.type === "file-change") {
       loadFiles();
-      // If the changed file is currently open, refresh it
       if (data.path === activeFile) {
         setRefreshKey((k) => k + 1);
       }
     }
-  });
+  }, connState.active.url);
 
   // Ctrl+K to open search
   useEffect(() => {
@@ -51,6 +60,14 @@ export default function App() {
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
+  // Close bot selector on outside click
+  useEffect(() => {
+    if (!botSelectorOpen) return;
+    const handler = () => setBotSelectorOpen(false);
+    setTimeout(() => document.addEventListener("click", handler), 0);
+    return () => document.removeEventListener("click", handler);
+  }, [botSelectorOpen]);
+
   const openFile = (path: string) => {
     setActiveFile(path);
     setView("file");
@@ -62,6 +79,15 @@ export default function App() {
     setActiveFile("");
     setSidebarOpen(false);
   };
+
+  const switchBot = (id: string) => {
+    connState.switchTo(id);
+    setBotSelectorOpen(false);
+    setView("dashboard");
+    setActiveFile("");
+  };
+
+  const online = connState.statuses[connState.active.id] ?? (connState.active.isLocal ? true : false);
 
   return (
     <LocaleContext.Provider value={localeState}>
@@ -101,6 +127,58 @@ export default function App() {
           </div>
         </div>
 
+        {/* Bot Selector */}
+        <div className="px-3 pt-3 relative">
+          <button
+            onClick={(e) => { e.stopPropagation(); setBotSelectorOpen(!botSelectorOpen); }}
+            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
+            style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}
+          >
+            <span
+              className="w-2 h-2 rounded-full shrink-0"
+              style={{ background: online ? "#22c55e" : "#ef4444" }}
+            />
+            <span className="truncate flex-1 text-left font-medium" style={{ color: "var(--text-primary)" }}>
+              {connState.active.name}
+            </span>
+            <ChevronDown className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
+          </button>
+
+          {/* Dropdown */}
+          {botSelectorOpen && (
+            <div
+              className="absolute left-3 right-3 top-full mt-1 rounded-lg shadow-lg z-50 py-1 max-h-60 overflow-y-auto"
+              style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {connState.connections.map((conn) => {
+                const s = connState.statuses[conn.id] ?? (conn.isLocal ? true : false);
+                return (
+                  <button
+                    key={conn.id}
+                    onClick={() => switchBot(conn.id)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-white/5"
+                    style={{ color: conn.id === connState.active.id ? "#3b82f6" : "var(--text-secondary)" }}
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s ? "#22c55e" : "#ef4444" }} />
+                    <span className="truncate flex-1 text-left">{conn.name}</span>
+                    {conn.id === connState.active.id && <span className="text-xs">✓</span>}
+                  </button>
+                );
+              })}
+              <div className="border-t my-1" style={{ borderColor: "var(--border)" }} />
+              <button
+                onClick={() => { setBotSelectorOpen(false); setView("connections"); }}
+                className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-white/5"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <Network className="w-3.5 h-3.5" />
+                {t("connections.manage")}
+              </button>
+            </div>
+          )}
+        </div>
+
         {/* Search trigger */}
         <button
           onClick={() => setSearchOpen(true)}
@@ -132,7 +210,7 @@ export default function App() {
             <Menu className="w-6 h-6" />
           </button>
           <span className="text-sm font-medium truncate">
-            {view === "file" ? activeFile : t("dashboard.title")}
+            {view === "file" ? activeFile : view === "connections" ? t("connections.title") : t("dashboard.title")}
           </span>
           <button onClick={sensitive.toggle} className="ml-auto p-1" style={{ color: "var(--text-muted)" }}>
             {sensitive.hidden ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -146,7 +224,20 @@ export default function App() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {view === "dashboard" ? (
+          {view === "connections" ? (
+            <div className="h-full overflow-auto">
+              <Connections
+                connections={connState.connections}
+                statuses={connState.statuses}
+                activeId={connState.active.id}
+                onAdd={connState.addConnection}
+                onUpdate={connState.updateConnection}
+                onRemove={connState.removeConnection}
+                onSwitch={switchBot}
+                onRefresh={connState.checkStatuses}
+              />
+            </div>
+          ) : view === "dashboard" ? (
             <div className="h-full overflow-auto">
               <Dashboard onOpenFile={openFile} />
             </div>

@@ -1,6 +1,14 @@
 /** API client for Memory Viewer backend. */
 
-const BASE = "";
+let _baseUrl = "";
+
+export function getBaseUrl(): string {
+  return _baseUrl;
+}
+
+export function setBaseUrl(url: string) {
+  _baseUrl = url.replace(/\/+$/, "");
+}
 
 export interface FileNode {
   name: string;
@@ -36,19 +44,25 @@ export interface SearchResult {
   matches: { line: number; text: string }[];
 }
 
+export interface BotInfo {
+  name: string;
+  version: string;
+  description: string;
+}
+
 export async function fetchFiles(): Promise<FileNode[]> {
-  const r = await fetch(`${BASE}/api/files`);
+  const r = await fetch(`${_baseUrl}/api/files`);
   return r.json();
 }
 
 export async function fetchFile(path: string): Promise<FileData> {
-  const r = await fetch(`${BASE}/api/file?path=${encodeURIComponent(path)}`);
+  const r = await fetch(`${_baseUrl}/api/file?path=${encodeURIComponent(path)}`);
   if (!r.ok) throw new Error("Failed to load file");
   return r.json();
 }
 
 export async function saveFile(path: string, content: string): Promise<{ ok: boolean; mtime: string }> {
-  const r = await fetch(`${BASE}/api/file`, {
+  const r = await fetch(`${_baseUrl}/api/file`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path, content }),
@@ -57,12 +71,12 @@ export async function saveFile(path: string, content: string): Promise<{ ok: boo
 }
 
 export async function fetchSystem(): Promise<SystemInfo> {
-  const r = await fetch(`${BASE}/api/system`);
+  const r = await fetch(`${_baseUrl}/api/system`);
   return r.json();
 }
 
 export async function searchFiles(query: string): Promise<SearchResult[]> {
-  const r = await fetch(`${BASE}/api/search?q=${encodeURIComponent(query)}`);
+  const r = await fetch(`${_baseUrl}/api/search?q=${encodeURIComponent(query)}`);
   return r.json();
 }
 
@@ -78,11 +92,25 @@ export interface MonthlyStats {
 }
 
 export async function fetchRecent(limit = 10): Promise<RecentFile[]> {
-  const r = await fetch(`${BASE}/api/recent?limit=${limit}`);
+  const r = await fetch(`${_baseUrl}/api/recent?limit=${limit}`);
   return r.json();
 }
 
 export async function fetchMonthlyStats(): Promise<MonthlyStats[]> {
-  const r = await fetch(`${BASE}/api/stats/monthly`);
+  const r = await fetch(`${_baseUrl}/api/stats/monthly`);
   return r.json();
+}
+
+export async function fetchBotInfo(baseUrl = ""): Promise<BotInfo> {
+  const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/api/info`);
+  return r.json();
+}
+
+export async function checkConnection(baseUrl: string): Promise<boolean> {
+  try {
+    const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/api/system`, { signal: AbortSignal.timeout(5000) });
+    return r.ok;
+  } catch {
+    return false;
+  }
 }

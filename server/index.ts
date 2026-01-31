@@ -24,7 +24,7 @@ const STATIC_DIR = process.env.STATIC_DIR || path.join(import.meta.dirname, ".."
 const app = express();
 const server = http.createServer(app);
 
-app.use(cors());
+app.use(cors({ origin: "*" }));
 app.use(express.json());
 
 // ---------------------------------------------------------------------------
@@ -199,6 +199,26 @@ app.get("/api/stats/monthly", (_req, res) => {
     .map(([month, count]) => ({ month, count }))
     .sort((a, b) => a.month.localeCompare(b.month));
   res.json(result);
+});
+
+/** Bot identity info — reads from SOUL.md or IDENTITY.md. */
+app.get("/api/info", (_req, res) => {
+  let name = "Unknown Bot";
+  let description = "";
+  for (const fname of ["IDENTITY.md", "SOUL.md"]) {
+    const fpath = path.join(WORKSPACE, fname);
+    if (fs.existsSync(fpath)) {
+      const content = fs.readFileSync(fpath, "utf-8");
+      // Try to extract name from first heading
+      const heading = content.match(/^#\s+(.+)/m);
+      if (heading) name = heading[1].trim();
+      // First paragraph as description
+      const lines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
+      if (lines.length > 0) description = lines[0].trim().substring(0, 200);
+      break;
+    }
+  }
+  res.json({ name, version: "1.0.0", description });
 });
 
 /** System status. */

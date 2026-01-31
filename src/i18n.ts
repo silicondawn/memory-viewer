@@ -52,6 +52,21 @@ const dict: Record<string, Record<Locale, string>> = {
   "search.files": { en: "files", zh: "个文件" },
   "search.matches": { en: "matches", zh: "个匹配" },
 
+  // Connections
+  "connections.title": { en: "Connections", zh: "连接管理" },
+  "connections.add": { en: "Add", zh: "添加" },
+  "connections.addNew": { en: "Add Connection", zh: "添加连接" },
+  "connections.edit": { en: "Edit Connection", zh: "编辑连接" },
+  "connections.save": { en: "Save", zh: "保存" },
+  "connections.cancel": { en: "Cancel", zh: "取消" },
+  "connections.refresh": { en: "Refresh", zh: "刷新" },
+  "connections.active": { en: "Active", zh: "当前连接" },
+  "connections.namePlaceholder": { en: "Name (e.g. Bot 01)", zh: "名称（如 Bot 01）" },
+  "connections.urlPlaceholder": { en: "URL (e.g. http://host:8901)", zh: "URL（如 http://host:8901）" },
+  "connections.tokenPlaceholder": { en: "Token (optional)", zh: "Token（可选）" },
+  "connections.switchBot": { en: "Switch Bot", zh: "切换 Bot" },
+  "connections.manage": { en: "Manage", zh: "管理" },
+
   // Months
   "month.01": { en: "Jan", zh: "1月" },
   "month.02": { en: "Feb", zh: "2月" },
