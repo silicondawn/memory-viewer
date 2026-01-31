@@ -5,9 +5,16 @@
   "type": "module",
   "license": "MIT",
   "author": "Silicon Dawn",
+  "homepage": "https://github.com/silicondawn/memory-viewer",
   "repository": {
     "type": "git",
     "url": "https://github.com/silicondawn/memory-viewer"
+  },
+  "bugs": {
+    "url": "https://github.com/silicondawn/memory-viewer/issues"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "keywords": [
     "openclaw",
