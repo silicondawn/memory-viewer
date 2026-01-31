@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { fetchSystem, type SystemInfo } from "../api";
+import { fetchSystem, fetchRecent, fetchMonthlyStats, type SystemInfo, type RecentFile, type MonthlyStats } from "../api";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { LayoutDashboard, FileText } from "lucide-react";
+import { LayoutDashboard, FileText, Clock, BarChart3, Zap } from "lucide-react";
 
 function formatUptime(seconds: number): string {
   const d = Math.floor(seconds / 86400);
@@ -18,11 +18,29 @@ function formatBytes(bytes: number): string {
   return (bytes / 1024 / 1024 / 1024).toFixed(1) + " GB";
 }
 
+function timeAgo(mtime: number): string {
+  const diff = Date.now() - mtime;
+  const seconds = Math.floor(diff / 1000);
+  if (seconds < 60) return "just now";
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes} min ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  return `${days}d ago`;
+}
+
+const PINNED_FILES = ["MEMORY.md", "SOUL.md", "USER.md", "AGENTS.md"];
+
 export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }) {
   const [info, setInfo] = useState<SystemInfo | null>(null);
+  const [recent, setRecent] = useState<RecentFile[]>([]);
+  const [monthly, setMonthly] = useState<MonthlyStats[]>([]);
 
   useEffect(() => {
     fetchSystem().then(setInfo).catch(console.error);
+    fetchRecent(10).then(setRecent).catch(console.error);
+    fetchMonthlyStats().then(setMonthly).catch(console.error);
   }, []);
 
   if (!info) {
@@ -35,6 +53,13 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
   }
 
   const memPercent = ((info.memUsed / info.memTotal) * 100).toFixed(1);
+  const maxCount = Math.max(...monthly.map((m) => m.count), 1);
+
+  // Quick access: pinned + recent files not in pinned
+  const recentQuick = recent
+    .map((r) => r.path)
+    .filter((p) => !PINNED_FILES.includes(p))
+    .slice(0, 4);
 
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
@@ -54,6 +79,70 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
       <div className="text-sm flex items-center gap-2" style={{ color: "var(--text-faint)" }}>
         <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
         {info.hostname} · {info.platform}
+      </div>
+
+      {/* Two-column: Recently Modified + Monthly Stats */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        {/* Recently Modified */}
+        <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-3" style={{ color: "var(--text-primary)" }}>
+            <Clock className="w-5 h-5 text-amber-400" /> Recently Modified
+          </h2>
+          <div className="space-y-1">
+            {recent.slice(0, 5).map((f) => (
+              <button
+                key={f.path}
+                onClick={() => onOpenFile(f.path)}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5"
+                style={{ color: "var(--text-secondary)" }}
+              >
+                <span className="truncate mr-2" title={f.path}>
+                  <FileText className="w-3.5 h-3.5 inline-block mr-1.5 opacity-50" />
+                  {f.path}
+                </span>
+                <span className="text-xs whitespace-nowrap shrink-0" style={{ color: "var(--text-faint)" }}>
+                  {timeAgo(f.mtime)}
+                </span>
+              </button>
+            ))}
+            {recent.length === 0 && (
+              <p className="text-sm italic" style={{ color: "var(--text-faint)" }}>No files found.</p>
+            )}
+          </div>
+        </section>
+
+        {/* Monthly Stats Bar Chart */}
+        <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-3" style={{ color: "var(--text-primary)" }}>
+            <BarChart3 className="w-5 h-5 text-purple-400" /> Memory by Month
+          </h2>
+          {monthly.length > 0 ? (
+            <div className="space-y-2">
+              {monthly.slice(-8).map((m) => (
+                <div key={m.month} className="flex items-center gap-2 text-xs">
+                  <span className="w-16 shrink-0 text-right" style={{ color: "var(--text-faint)" }}>
+                    {m.month}
+                  </span>
+                  <div className="flex-1 rounded-full overflow-hidden h-4" style={{ background: "var(--bg-hover)" }}>
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${(m.count / maxCount) * 100}%`,
+                        background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
+                        minWidth: "8px",
+                      }}
+                    />
+                  </div>
+                  <span className="w-6 text-right font-mono" style={{ color: "var(--text-muted)" }}>
+                    {m.count}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm italic" style={{ color: "var(--text-faint)" }}>No memory files found.</p>
+          )}
+        </section>
       </div>
 
       {/* Today's memory */}
@@ -85,18 +174,32 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
         )}
       </section>
 
-      {/* Quick access */}
-      <div className="flex flex-wrap gap-2">
-        {["MEMORY.md", "SOUL.md", "USER.md", "AGENTS.md"].map((f) => (
-          <button
-            key={f}
-            onClick={() => onOpenFile(f)}
-            className="btn-secondary text-sm"
-          >
-            {f}
-          </button>
-        ))}
-      </div>
+      {/* Quick Access */}
+      <section>
+        <h2 className="text-sm font-semibold flex items-center gap-1.5 mb-2" style={{ color: "var(--text-muted)" }}>
+          <Zap className="w-4 h-4" /> Quick Access
+        </h2>
+        <div className="flex flex-wrap gap-2">
+          {PINNED_FILES.map((f) => (
+            <button
+              key={f}
+              onClick={() => onOpenFile(f)}
+              className="btn-secondary text-sm"
+            >
+              📌 {f}
+            </button>
+          ))}
+          {recentQuick.map((f) => (
+            <button
+              key={f}
+              onClick={() => onOpenFile(f)}
+              className="btn-secondary text-sm opacity-75"
+            >
+              🕐 {f.split("/").pop()}
+            </button>
+          ))}
+        </div>
+      </section>
     </div>
   );
 }

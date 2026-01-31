@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
 import { fetchFile, saveFile } from "../api";
-import { Pencil, Save, X, Check, AlertCircle } from "lucide-react";
+import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy } from "lucide-react";
 import { SensitiveText } from "./SensitiveMask";
 
 /** Extract YAML front matter and return { meta, body } */
@@ -33,12 +33,67 @@ function maskChildren(children: React.ReactNode): React.ReactNode {
   return children;
 }
 
+/** Code block with copy button */
+function CodeBlock({ className, children, ...props }: any) {
+  const [copied, setCopied] = useState(false);
+  const isBlock = className?.startsWith("language-");
+  if (!isBlock) {
+    if (typeof children === "string") {
+      return <code {...props}><SensitiveText>{children}</SensitiveText></code>;
+    }
+    return <code {...props}>{children}</code>;
+  }
+  const text = String(children).replace(/\n$/, "");
+  return (
+    <code className={className} {...props}>
+      <button
+        className="code-copy-btn"
+        onClick={() => { navigator.clipboard.writeText(text); setCopied(true); setTimeout(() => setCopied(false), 1500); }}
+        title="Copy"
+      >
+        {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
+      </button>
+      {children}
+    </code>
+  );
+}
+
+/** Breadcrumb path */
+function Breadcrumb({ path, hasChanges, onNavigate }: { path: string; hasChanges: boolean; onNavigate?: (dir: string) => void }) {
+  const parts = path.split("/");
+  return (
+    <span className={`font-medium flex items-center flex-wrap gap-0.5 min-w-0 ${hasChanges ? "text-yellow-400" : ""}`} style={hasChanges ? {} : { color: "var(--text-primary)" }}>
+      {hasChanges && "● "}
+      {parts.map((part, i) => {
+        const isLast = i === parts.length - 1;
+        const dir = parts.slice(0, i + 1).join("/");
+        return (
+          <span key={i} className="flex items-center gap-0.5">
+            {i > 0 && <ChevronRight className="w-3 h-3 shrink-0" style={{ color: "var(--text-faint)" }} />}
+            {isLast ? (
+              <span className="truncate">{part}</span>
+            ) : (
+              <button
+                className="hover:text-blue-400 transition-colors truncate"
+                onClick={() => onNavigate?.(dir)}
+              >
+                {part}
+              </button>
+            )}
+          </span>
+        );
+      })}
+    </span>
+  );
+}
+
 interface FileViewerProps {
   filePath: string;
   refreshKey?: number;
+  onNavigate?: (dir: string) => void;
 }
 
-export function FileViewer({ filePath, refreshKey }: FileViewerProps) {
+export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps) {
   const [content, setContent] = useState("");
   const [editContent, setEditContent] = useState("");
   const [mtime, setMtime] = useState("");
@@ -46,6 +101,8 @@ export function FileViewer({ filePath, refreshKey }: FileViewerProps) {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const editorRef = useRef<HTMLTextAreaElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     setLoading(true);
@@ -113,6 +170,21 @@ export function FileViewer({ filePath, refreshKey }: FileViewerProps) {
 
   const frontMatter = useMemo(() => parseFrontMatter(content), [content]);
 
+  const fileStats = useMemo(() => {
+    const bytes = new Blob([content]).size;
+    const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+    const sizeStr = bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
+    return { sizeStr, words };
+  }, [content]);
+
+  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+    setShowScrollTop(e.currentTarget.scrollTop > 300);
+  }, []);
+
+  const scrollToTop = () => {
+    contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full" style={{ color: "var(--text-faint)" }}>
@@ -126,15 +198,19 @@ export function FileViewer({ filePath, refreshKey }: FileViewerProps) {
     <div className="flex flex-col h-full">
       {/* Toolbar */}
       <header className="flex items-center justify-between px-4 py-2.5 border-b backdrop-blur shrink-0" style={{ borderColor: "var(--border)", background: "var(--bg-secondary)" }}>
-        <div className="min-w-0">
-          <span className={`font-medium truncate ${hasChanges ? "text-yellow-400" : ""}`} style={hasChanges ? {} : { color: "var(--text-primary)" }}>
-            {hasChanges && "● "}{filePath}
-          </span>
-          <span className="text-xs ml-3 hidden sm:inline" style={{ color: "var(--text-faint)" }}>
+        <div className="min-w-0 flex items-center gap-3">
+          <Breadcrumb path={filePath} hasChanges={hasChanges} onNavigate={onNavigate} />
+          <span className="text-xs hidden sm:inline" style={{ color: "var(--text-faint)" }}>
             {new Date(mtime).toLocaleString()}
           </span>
         </div>
-        <div className="flex gap-2 shrink-0">
+        <div className="flex items-center gap-3 shrink-0">
+          <span className="text-xs hidden sm:flex gap-2" style={{ color: "var(--text-faint)" }}>
+            <span>{fileStats.sizeStr}</span>
+            <span>·</span>
+            <span>{fileStats.words} words</span>
+          </span>
+          <div className="flex gap-2">
           {editing ? (
             <>
               <button onClick={handleSave} className="btn-primary text-sm flex items-center gap-1">
@@ -149,11 +225,12 @@ export function FileViewer({ filePath, refreshKey }: FileViewerProps) {
               <Pencil className="w-3.5 h-3.5" /> Edit
             </button>
           )}
+          </div>
         </div>
       </header>
 
       {/* Content */}
-      <div className="flex-1 overflow-auto p-4 sm:p-6">
+      <div className="flex-1 overflow-auto p-4 sm:p-6 relative" ref={contentRef} onScroll={handleScroll}>
         {editing ? (
           <textarea
             ref={editorRef}
@@ -194,18 +271,7 @@ export function FileViewer({ filePath, refreshKey }: FileViewerProps) {
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkFrontmatter]}
               components={{
-                // Mask sensitive content in inline code
-                code({ children, className, ...props }) {
-                  const isBlock = className?.startsWith("language-");
-                  if (isBlock) {
-                    return <code className={className} {...props}>{children}</code>;
-                  }
-                  // Inline code
-                  if (typeof children === "string") {
-                    return <code {...props}><SensitiveText>{children}</SensitiveText></code>;
-                  }
-                  return <code {...props}>{children}</code>;
-                },
+                code: CodeBlock,
                 // Mask in plain text nodes within paragraphs
                 p({ children }) {
                   return <p>{maskChildren(children)}</p>;
@@ -221,6 +287,13 @@ export function FileViewer({ filePath, refreshKey }: FileViewerProps) {
           </article>
         )}
       </div>
+
+      {/* Scroll to top */}
+      {showScrollTop && !editing && (
+        <button onClick={scrollToTop} className="scroll-top-btn" title="Back to top">
+          <ArrowUp className="w-5 h-5" />
+        </button>
+      )}
 
       {/* Toast */}
       {toast && <div className="toast">{toast}</div>}

@@ -65,3 +65,24 @@ export async function searchFiles(query: string): Promise<SearchResult[]> {
   const r = await fetch(`${BASE}/api/search?q=${encodeURIComponent(query)}`);
   return r.json();
 }
+
+export interface RecentFile {
+  path: string;
+  mtime: number;
+  size: number;
+}
+
+export interface MonthlyStats {
+  month: string;
+  count: number;
+}
+
+export async function fetchRecent(limit = 10): Promise<RecentFile[]> {
+  const r = await fetch(`${BASE}/api/recent?limit=${limit}`);
+  return r.json();
+}
+
+export async function fetchMonthlyStats(): Promise<MonthlyStats[]> {
+  const r = await fetch(`${BASE}/api/stats/monthly`);
+  return r.json();
+}

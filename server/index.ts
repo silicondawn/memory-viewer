@@ -153,6 +153,54 @@ app.get("/api/search", (req, res) => {
   res.json(results);
 });
 
+/** Recently modified files. */
+app.get("/api/recent", (_req, res) => {
+  const files = collectMdFiles(WORKSPACE);
+  const withStats = files.map((relPath) => {
+    const full = path.join(WORKSPACE, relPath);
+    try {
+      const stat = fs.statSync(full);
+      return { path: relPath, mtime: stat.mtime.getTime(), size: stat.size };
+    } catch {
+      return null;
+    }
+  }).filter(Boolean) as { path: string; mtime: number; size: number }[];
+  withStats.sort((a, b) => b.mtime - a.mtime);
+  const limit = Math.min(Number(req.query.limit) || 10, 50);
+  res.json(withStats.slice(0, limit));
+});
+
+/** Monthly file count distribution for memory/ directory. */
+app.get("/api/stats/monthly", (_req, res) => {
+  const memoryDir = path.join(WORKSPACE, "memory");
+  const counts: Record<string, number> = {};
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(memoryDir, { withFileTypes: true });
+  } catch {
+    return void res.json([]);
+  }
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+    // Try to extract YYYY-MM from filename like 2025-01-15.md
+    const match = entry.name.match(/^(\d{4}-\d{2})/);
+    if (match) {
+      counts[match[1]] = (counts[match[1]] || 0) + 1;
+    } else {
+      // Use file mtime
+      try {
+        const stat = fs.statSync(path.join(memoryDir, entry.name));
+        const month = stat.mtime.toISOString().slice(0, 7);
+        counts[month] = (counts[month] || 0) + 1;
+      } catch { /* skip */ }
+    }
+  }
+  const result = Object.entries(counts)
+    .map(([month, count]) => ({ month, count }))
+    .sort((a, b) => a.month.localeCompare(b.month));
+  res.json(result);
+});
+
 /** System status. */
 app.get("/api/system", (_req, res) => {
   const uptime = os.uptime();
