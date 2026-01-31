@@ -69,16 +69,37 @@ export default function App() {
     return () => document.removeEventListener("click", handler);
   }, [botSelectorOpen]);
 
+  // Sync hash → state on load and popstate
+  useEffect(() => {
+    const readHash = () => {
+      const hash = window.location.hash;
+      if (hash.startsWith("#/file/")) {
+        const path = decodeURIComponent(hash.slice(7));
+        if (path) {
+          setActiveFile(path);
+          setView("file");
+          return;
+        }
+      }
+      // other hash routes could go here
+    };
+    readHash();
+    window.addEventListener("popstate", readHash);
+    return () => window.removeEventListener("popstate", readHash);
+  }, []);
+
   const openFile = (path: string) => {
     setActiveFile(path);
     setView("file");
     setSidebarOpen(false);
+    window.history.pushState(null, "", `#/file/${encodeURIComponent(path)}`);
   };
 
   const goHome = () => {
     setView("dashboard");
     setActiveFile("");
     setSidebarOpen(false);
+    window.history.pushState(null, "", window.location.pathname);
   };
 
   const switchBot = (id: string) => {
