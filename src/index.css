@@ -194,6 +194,26 @@ body {
   to { transform: translateY(0); opacity: 1; }
 }
 
+/* Sensitive content blur (Telegram-style) */
+.sensitive-blur {
+  filter: blur(6px);
+  -webkit-filter: blur(6px);
+  user-select: none;
+  transition: filter 0.3s ease;
+  cursor: default;
+  border-radius: 4px;
+  padding: 0 2px;
+}
+.sensitive-blur:hover {
+  filter: blur(4px);
+}
+.sensitive-revealed .sensitive-blur {
+  filter: none !important;
+  -webkit-filter: none !important;
+  user-select: auto;
+  cursor: text;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }

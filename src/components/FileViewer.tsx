@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
 import { fetchFile, saveFile } from "../api";
 import { Pencil, Save, X, Check, AlertCircle } from "lucide-react";
+import { SensitiveText } from "./SensitiveMask";
 
 /** Extract YAML front matter and return { meta, body } */
 function parseFrontMatter(raw: string): { meta: Record<string, string> | null; body: string } {
@@ -21,6 +22,15 @@ function parseFrontMatter(raw: string): { meta: Record<string, string> | null; b
     }
   }
   return { meta: Object.keys(meta).length ? meta : null, body };
+}
+
+/** Recursively wrap string children with SensitiveText */
+function maskChildren(children: React.ReactNode): React.ReactNode {
+  if (typeof children === "string") return <SensitiveText>{children}</SensitiveText>;
+  if (Array.isArray(children)) return children.map((c, i) =>
+    typeof c === "string" ? <SensitiveText key={i}>{c}</SensitiveText> : c
+  );
+  return children;
 }
 
 interface FileViewerProps {
@@ -181,7 +191,33 @@ export function FileViewer({ filePath, refreshKey }: FileViewerProps) {
                   ))}
               </div>
             )}
-            <ReactMarkdown remarkPlugins={[remarkGfm, remarkFrontmatter]}>{content}</ReactMarkdown>
+            <ReactMarkdown
+              remarkPlugins={[remarkGfm, remarkFrontmatter]}
+              components={{
+                // Mask sensitive content in inline code
+                code({ children, className, ...props }) {
+                  const isBlock = className?.startsWith("language-");
+                  if (isBlock) {
+                    return <code className={className} {...props}>{children}</code>;
+                  }
+                  // Inline code
+                  if (typeof children === "string") {
+                    return <code {...props}><SensitiveText>{children}</SensitiveText></code>;
+                  }
+                  return <code {...props}>{children}</code>;
+                },
+                // Mask in plain text nodes within paragraphs
+                p({ children }) {
+                  return <p>{maskChildren(children)}</p>;
+                },
+                li({ children }) {
+                  return <li>{maskChildren(children)}</li>;
+                },
+                td({ children }) {
+                  return <td>{maskChildren(children)}</td>;
+                },
+              }}
+            >{content}</ReactMarkdown>
           </article>
         )}
       </div>

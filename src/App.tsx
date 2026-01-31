@@ -6,7 +6,8 @@ import { Dashboard } from "./components/Dashboard";
 import { SearchPanel } from "./components/SearchPanel";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
-import { BookOpen, X, Menu, Search, Sun, Moon } from "lucide-react";
+import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
+import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff } from "lucide-react";
 
 export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
@@ -16,6 +17,7 @@ export default function App() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const { theme, toggle: toggleTheme } = useTheme();
+  const sensitive = useSensitiveState();
 
   const loadFiles = useCallback(() => {
     fetchFiles().then(setFiles).catch(console.error);
@@ -59,7 +61,8 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-dvh" style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <SensitiveProvider value={sensitive}>
+    <div className={`flex h-dvh ${sensitive.hidden ? "" : "sensitive-revealed"}`} style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -77,6 +80,9 @@ export default function App() {
             <BookOpen className="w-5 h-5 inline-block mr-1" /> Memory Viewer
           </button>
           <div className="flex items-center gap-1">
+            <button onClick={sensitive.toggle} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={sensitive.hidden ? "Show sensitive content" : "Hide sensitive content"}>
+              {sensitive.hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+            </button>
             <button onClick={toggleTheme} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}>
               {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
             </button>
@@ -119,7 +125,10 @@ export default function App() {
           <span className="text-sm font-medium truncate">
             {view === "file" ? activeFile : "Dashboard"}
           </span>
-          <button onClick={toggleTheme} className="ml-auto p-1" style={{ color: "var(--text-muted)" }}>
+          <button onClick={sensitive.toggle} className="ml-auto p-1" style={{ color: "var(--text-muted)" }}>
+            {sensitive.hidden ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+          </button>
+          <button onClick={toggleTheme} className="p-1" style={{ color: "var(--text-muted)" }}>
             {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
           <button onClick={() => setSearchOpen(true)} style={{ color: "var(--text-muted)" }}>
@@ -143,5 +152,6 @@ export default function App() {
         <SearchPanel onSelect={openFile} onClose={() => setSearchOpen(false)} />
       )}
     </div>
+    </SensitiveProvider>
   );
 }
