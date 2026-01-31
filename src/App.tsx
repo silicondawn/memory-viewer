@@ -5,6 +5,7 @@ import { FileViewer } from "./components/FileViewer";
 import { Dashboard } from "./components/Dashboard";
 import { SearchPanel } from "./components/SearchPanel";
 import { Connections } from "./components/Connections";
+import { Changelog } from "./components/Changelog";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
@@ -15,7 +16,7 @@ import { useLocaleState, LocaleContext } from "./hooks/useLocale";
 export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [activeFile, setActiveFile] = useState("");
-  const [view, setView] = useState<"dashboard" | "file" | "connections">("dashboard");
+  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -197,8 +198,15 @@ export default function App() {
         </div>
 
         {/* Footer */}
-        <div className="sidebar-footer px-4 py-2.5 border-t text-xs">
-          {t("sidebar.footer")}
+        <div className="sidebar-footer px-4 py-2.5 border-t text-xs flex items-center justify-between">
+          <span>{t("sidebar.footer")}</span>
+          <button
+            onClick={() => { setView("changelog"); setSidebarOpen(false); }}
+            className="hover:text-blue-400 transition-colors"
+            style={{ color: "var(--text-muted)" }}
+          >
+            v1.1.0
+          </button>
         </div>
       </aside>
 
@@ -210,7 +218,7 @@ export default function App() {
             <Menu className="w-6 h-6" />
           </button>
           <span className="text-sm font-medium truncate">
-            {view === "file" ? activeFile : view === "connections" ? t("connections.title") : t("dashboard.title")}
+            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : t("dashboard.title")}
           </span>
           <button onClick={sensitive.toggle} className="ml-auto p-1" style={{ color: "var(--text-muted)" }}>
             {sensitive.hidden ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
@@ -224,7 +232,9 @@ export default function App() {
         </div>
 
         <div className="flex-1 overflow-hidden">
-          {view === "connections" ? (
+          {view === "changelog" ? (
+            <Changelog onBack={goHome} />
+          ) : view === "connections" ? (
             <div className="h-full overflow-auto">
               <Connections
                 connections={connState.connections}
