@@ -10,7 +10,7 @@ import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
 import { useConnections } from "./hooks/useConnections";
-import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown } from "lucide-react";
+import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, RefreshCw } from "lucide-react";
 import { useLocaleState, LocaleContext } from "./hooks/useLocale";
 
 export default function App() {
@@ -101,7 +101,7 @@ export default function App() {
 
       {/* Sidebar */}
       <aside
-        className={`sidebar fixed z-40 lg:static lg:z-auto inset-y-0 left-0 w-72 border-r flex flex-col shrink-0 transition-transform duration-200 ${
+        className={`sidebar fixed z-40 lg:static lg:z-auto inset-y-0 left-0 w-80 lg:w-96 border-r flex flex-col shrink-0 transition-transform duration-200 ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
       >
@@ -116,6 +116,9 @@ export default function App() {
             </button>
           </div>
           <div className="flex items-center gap-0.5 mt-2">
+            <button onClick={() => window.location.reload()} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title="Refresh">
+              <RefreshCw className="w-3.5 h-3.5" />
+            </button>
             <button onClick={sensitive.toggle} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={sensitive.hidden ? t("sidebar.showSensitive") : t("sidebar.hideSensitive")}>
               {sensitive.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
             </button>
@@ -220,7 +223,10 @@ export default function App() {
           <span className="text-sm font-medium truncate">
             {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : t("dashboard.title")}
           </span>
-          <button onClick={sensitive.toggle} className="ml-auto p-1" style={{ color: "var(--text-muted)" }}>
+          <button onClick={() => window.location.reload()} className="ml-auto p-1" style={{ color: "var(--text-muted)" }} title="Refresh">
+            <RefreshCw className="w-5 h-5" />
+          </button>
+          <button onClick={sensitive.toggle} className="p-1" style={{ color: "var(--text-muted)" }}>
             {sensitive.hidden ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
           </button>
           <button onClick={toggleTheme} className="p-1" style={{ color: "var(--text-muted)" }}>

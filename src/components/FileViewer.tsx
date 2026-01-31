@@ -6,7 +6,8 @@ import { fetchFile, saveFile, ConflictResult } from "../api";
 import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle } from "lucide-react";
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
-import { MarkdownEditor } from "./MarkdownEditor";
+import { lazy, Suspense } from "react";
+const MarkdownEditor = lazy(() => import("./MarkdownEditor").then(m => ({ default: m.MarkdownEditor })));
 
 /** Extract YAML front matter and return { meta, body } */
 function parseFrontMatter(raw: string): { meta: Record<string, string> | null; body: string } {
@@ -279,12 +280,14 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
       {/* Content */}
       <div className="flex-1 overflow-auto p-4 sm:p-6 relative" ref={contentRef} onScroll={handleScroll}>
         {editing ? (
-          <MarkdownEditor
-            value={editContent}
-            onChange={setEditContent}
-            onSave={handleSave}
-            dark={isDark}
-          />
+          <Suspense fallback={<div style={{ padding: 20, color: "var(--text-muted)" }}>Loading editor...</div>}>
+            <MarkdownEditor
+              value={editContent}
+              onChange={setEditContent}
+              onSave={handleSave}
+              dark={isDark}
+            />
+          </Suspense>
         ) : (
           <article className="markdown-body max-w-3xl mx-auto">
             {frontMatter.meta && (

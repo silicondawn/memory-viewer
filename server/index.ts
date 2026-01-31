@@ -6,6 +6,7 @@
  * notifications to connected clients.
  */
 import express from "express";
+import compression from "compression";
 import cors from "cors";
 import fs from "fs";
 import path from "path";
@@ -24,6 +25,7 @@ const STATIC_DIR = process.env.STATIC_DIR || path.join(import.meta.dirname, ".."
 const app = express();
 const server = http.createServer(app);
 
+app.use(compression());
 app.use(cors({ origin: "*" }));
 app.use(express.json());
 
@@ -299,8 +301,12 @@ app.post("/api/gateway/chat", async (req, res) => {
 // Static file serving (production)
 // ---------------------------------------------------------------------------
 if (fs.existsSync(STATIC_DIR)) {
-  app.use(express.static(STATIC_DIR));
+  // Assets have content hash in filename — cache forever
+  app.use("/assets", express.static(path.join(STATIC_DIR, "assets"), { maxAge: "1y", immutable: true }));
+  // HTML — never cache so updates are picked up immediately
+  app.use(express.static(STATIC_DIR, { maxAge: 0, etag: false }));
   app.get("/{*path}", (_req, res) => {
+    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
     res.sendFile(path.join(STATIC_DIR, "index.html"));
   });
 }
