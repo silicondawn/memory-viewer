@@ -79,22 +79,24 @@ export default function App() {
         }`}
       >
         {/* Header */}
-        <div className="sidebar-header flex items-center justify-between px-4 py-3.5 border-b">
-          <button onClick={goHome} className="text-lg font-bold hover:text-blue-400 transition-colors" style={{ color: "var(--text-primary)" }}>
-            <BookOpen className="w-5 h-5 inline-block mr-1" /> Memory Viewer
-          </button>
-          <div className="flex items-center gap-1">
-            <button onClick={sensitive.toggle} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={sensitive.hidden ? t("sidebar.showSensitive") : t("sidebar.hideSensitive")}>
-              {sensitive.hidden ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-            </button>
-            <button onClick={toggleTheme} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={theme === "dark" ? t("sidebar.lightMode") : t("sidebar.darkMode")}>
-              {theme === "dark" ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-            </button>
-            <button onClick={toggleLocale} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={locale === "en" ? "切换到中文" : "Switch to English"}>
-              <Languages className="w-4 h-4" />
+        <div className="sidebar-header px-4 py-3 border-b">
+          <div className="flex items-center justify-between">
+            <button onClick={goHome} className="text-base font-bold hover:text-blue-400 transition-colors whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
+              <BookOpen className="w-4.5 h-4.5 inline-block mr-1 -mt-0.5" /> Memory Viewer
             </button>
             <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1" style={{ color: "var(--text-muted)" }}>
               <X className="w-5 h-5" />
+            </button>
+          </div>
+          <div className="flex items-center gap-0.5 mt-2">
+            <button onClick={sensitive.toggle} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={sensitive.hidden ? t("sidebar.showSensitive") : t("sidebar.hideSensitive")}>
+              {sensitive.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+            </button>
+            <button onClick={toggleTheme} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={theme === "dark" ? t("sidebar.lightMode") : t("sidebar.darkMode")}>
+              {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
+            </button>
+            <button onClick={toggleLocale} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={locale === "en" ? "切换到中文" : "Switch to English"}>
+              <Languages className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
