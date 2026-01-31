@@ -7,7 +7,50 @@ import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, Alert
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
 import { lazy, Suspense } from "react";
+import { renderMermaid, THEMES } from "beautiful-mermaid";
 const MarkdownEditor = lazy(() => import("./MarkdownEditor").then(m => ({ default: m.MarkdownEditor })));
+
+/** Mermaid diagram renderer */
+function MermaidBlock({ code }: { code: string }) {
+  const [svg, setSvg] = useState<string>("");
+  const [error, setError] = useState<string>("");
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const isDark = document.documentElement.classList.contains("dark");
+    const theme = isDark ? THEMES["tokyo-night"] : THEMES["github-light"];
+    renderMermaid(code, theme)
+      .then((result) => {
+        setSvg(typeof result === "string" ? result : (result as any).svg || String(result));
+        setError("");
+      })
+      .catch((e) => {
+        setError(e.message || "Failed to render diagram");
+        setSvg("");
+      });
+  }, [code]);
+
+  if (error) {
+    return (
+      <div className="p-4 rounded-xl text-sm" style={{ background: "var(--pre-bg)", border: "1px solid var(--pre-border)", color: "var(--text-muted)" }}>
+        <div className="mb-2 text-red-400">⚠ Mermaid render error: {error}</div>
+        <pre style={{ whiteSpace: "pre-wrap", color: "var(--pre-text)" }}>{code}</pre>
+      </div>
+    );
+  }
+
+  if (!svg) {
+    return <div className="p-4 text-sm" style={{ color: "var(--text-faint)" }}>Rendering diagram...</div>;
+  }
+
+  return (
+    <div
+      ref={containerRef}
+      className="my-4 overflow-x-auto flex justify-center"
+      dangerouslySetInnerHTML={{ __html: svg }}
+    />
+  );
+}
 
 /** Extract YAML front matter and return { meta, body } */
 function parseFrontMatter(raw: string): { meta: Record<string, string> | null; body: string } {
@@ -54,6 +97,10 @@ function CodeBlock({ className, children, ...props }: any) {
     return <code {...props}>{children}</code>;
   }
   const isDark = document.documentElement.classList.contains("dark");
+  // Mermaid diagrams
+  if (match && match[1] === "mermaid") {
+    return <MermaidBlock code={text} />;
+  }
   // Plain text code blocks (no language) - use simple <pre> for uniform background
   if (!match) {
     return (

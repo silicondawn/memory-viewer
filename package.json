@@ -42,6 +42,7 @@
     "@codemirror/view": "^6.39.12",
     "@types/compression": "^1.8.1",
     "@types/react-syntax-highlighter": "^15.5.13",
+    "beautiful-mermaid": "^0.1.3",
     "chokidar": "^4.0.3",
     "compression": "^1.8.1",
     "cors": "^2.8.6",
