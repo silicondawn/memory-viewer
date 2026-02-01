@@ -69,6 +69,72 @@ PORT=8901 npm start
 
 The production server serves both the API and the built frontend from a single process.
 
+## Docker Deployment
+
+### Quick Start (Pre-built Image)
+
+Use the pre-built image from GitHub Container Registry:
+
+```bash
+# Run directly with docker
+docker run -d \
+  -p 8901:8901 \
+  -v ~/.openclaw/workspace:/app/workspace:ro \
+  --name memory-viewer \
+  ghcr.io/silicondawn/memory-viewer:latest
+
+# Or use docker-compose
+docker-compose up -d
+```
+
+Open [http://localhost:8901](http://localhost:8901) in your browser.
+
+### Build from Source
+
+```bash
+# Clone the repository
+git clone https://github.com/silicondawn/memory-viewer.git
+cd memory-viewer
+
+# Build and run
+docker-compose up -d --build
+```
+
+### Docker Configuration
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `PORT` | `8901` | Container port (fixed in image) |
+| `WORKSPACE_DIR` | `/app/workspace` | Directory inside container for `.md` files |
+| `STATIC_DIR` | `/app/dist` | Built frontend assets |
+
+### Customizing the Mount Path
+
+Edit `docker-compose.yml` to point to your actual OpenClaw workspace:
+
+```yaml
+volumes:
+  - ~/.openclaw/workspace:/app/workspace:ro
+  # Windows: C:/Users/YourName/.openclaw/workspace:/app/workspace:ro
+```
+
+The `:ro` flag mounts the directory as read-only (recommended for safety).
+
+### Building Custom Images
+
+Use the provided build script:
+
+```bash
+# Build with default tag (latest)
+./scripts/build-docker.sh
+
+# Build with specific tag
+./scripts/build-docker.sh v1.2.0
+
+# Build and push to registry
+PUSH=true ./scripts/build-docker.sh v1.2.0
+```
+
 ## Architecture
 
 ```
