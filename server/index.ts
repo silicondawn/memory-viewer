@@ -1,19 +1,21 @@
 /**
- * Memory Viewer — API Server
+ * Memory Viewer — API Server (Hono)
  *
  * Provides REST endpoints for browsing, reading, editing, and searching
  * Markdown files, plus a WebSocket channel that pushes live file-change
  * notifications to connected clients.
  */
-import express from "express";
-import compression from "compression";
-import cors from "cors";
+import { Hono } from "hono";
+import { compress } from "hono/compress";
+import { cors } from "hono/cors";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { createNodeWebSocket } from "@hono/node-ws";
+import { serve } from "@hono/node-server";
 import fs from "fs";
 import path from "path";
 import os from "os";
-import http from "http";
-import { WebSocketServer, WebSocket } from "ws";
 import { watch } from "chokidar";
+import type { ServerWebSocket } from "@hono/node-ws";
 
 // ---------------------------------------------------------------------------
 // Config
@@ -22,18 +24,16 @@ const PORT = Number(process.env.PORT) || 3001;
 const WORKSPACE = process.env.WORKSPACE_DIR || path.join(os.homedir(), "clawd");
 const STATIC_DIR = process.env.STATIC_DIR || path.join(import.meta.dirname, "..", "dist");
 
-const app = express();
-const server = http.createServer(app);
+const app = new Hono();
+const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
-app.use(compression());
-app.use(cors({ origin: "*" }));
-app.use(express.json());
+app.use("*", compress());
+app.use("*", cors({ origin: "*" }));
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-/** Resolve and validate a relative .md path inside the workspace. */
 function safePath(filePath: string | undefined | null): string | null {
   if (!filePath || filePath.includes("..") || !filePath.endsWith(".md")) return null;
   const full = path.resolve(WORKSPACE, filePath);
@@ -41,7 +41,6 @@ function safePath(filePath: string | undefined | null): string | null {
   return full;
 }
 
-/** Recursively scan a directory for .md files and return a tree structure. */
 interface TreeNode {
   name: string;
   type: "file" | "dir";
@@ -72,7 +71,6 @@ function scanDir(dir: string, prefix = ""): TreeNode[] {
   return result;
 }
 
-/** Collect all .md file paths (flat list). */
 function collectMdFiles(dir: string, prefix = ""): string[] {
   const files: string[] = [];
   let entries: fs.Dirent[];
@@ -97,51 +95,44 @@ function collectMdFiles(dir: string, prefix = ""): string[] {
 // REST API
 // ---------------------------------------------------------------------------
 
-/** List all .md files as a tree. */
-app.get("/api/files", (_req, res) => {
-  res.json(scanDir(WORKSPACE));
-});
+app.get("/api/files", (c) => c.json(scanDir(WORKSPACE)));
 
-/** Read a single file. */
-app.get("/api/file", (req, res) => {
-  const full = safePath(req.query.path as string);
-  if (!full) return void res.status(400).json({ error: "Invalid path" });
-  if (!fs.existsSync(full)) return void res.status(404).json({ error: "Not found" });
+app.get("/api/file", (c) => {
+  const full = safePath(c.req.query("path"));
+  if (!full) return c.json({ error: "Invalid path" }, 400);
+  if (!fs.existsSync(full)) return c.json({ error: "Not found" }, 404);
   const content = fs.readFileSync(full, "utf-8");
   const stat = fs.statSync(full);
-  res.json({ content, mtime: stat.mtime, size: stat.size });
+  return c.json({ content, mtime: stat.mtime, size: stat.size });
 });
 
-/** Save a file (with optimistic locking via expectedMtime). */
-app.put("/api/file", (req, res) => {
-  const { path: filePath, content, expectedMtime } = req.body;
+app.put("/api/file", async (c) => {
+  const { path: filePath, content, expectedMtime } = await c.req.json();
   const full = safePath(filePath);
-  if (!full) return void res.status(400).json({ error: "Invalid path" });
+  if (!full) return c.json({ error: "Invalid path" }, 400);
 
-  // Optimistic lock: if client sends expectedMtime, verify it matches
   if (expectedMtime && fs.existsSync(full)) {
     const currentMtime = fs.statSync(full).mtime.toISOString();
     if (currentMtime !== expectedMtime) {
       const currentContent = fs.readFileSync(full, "utf-8");
-      return void res.status(409).json({
+      return c.json({
         error: "conflict",
         message: "File was modified since you started editing",
         serverMtime: currentMtime,
         serverContent: currentContent,
-      });
+      }, 409);
     }
   }
 
   fs.mkdirSync(path.dirname(full), { recursive: true });
   fs.writeFileSync(full, content, "utf-8");
   const stat = fs.statSync(full);
-  res.json({ ok: true, mtime: stat.mtime });
+  return c.json({ ok: true, mtime: stat.mtime });
 });
 
-/** Full-text search across all .md files. */
-app.get("/api/search", (req, res) => {
-  const q = (req.query.q as string || "").trim().toLowerCase();
-  if (!q || q.length < 2) return void res.json([]);
+app.get("/api/search", (c) => {
+  const q = (c.req.query("q") || "").trim().toLowerCase();
+  if (!q || q.length < 2) return c.json([]);
 
   const files = collectMdFiles(WORKSPACE);
   const results: { path: string; matches: { line: number; text: string }[] }[] = [];
@@ -159,19 +150,16 @@ app.get("/api/search", (req, res) => {
     for (let i = 0; i < lines.length; i++) {
       if (lines[i].toLowerCase().includes(q)) {
         matches.push({ line: i + 1, text: lines[i].substring(0, 200) });
-        if (matches.length >= 5) break; // cap per file
+        if (matches.length >= 5) break;
       }
     }
-    if (matches.length > 0) {
-      results.push({ path: relPath, matches });
-    }
-    if (results.length >= 50) break; // cap total
+    if (matches.length > 0) results.push({ path: relPath, matches });
+    if (results.length >= 50) break;
   }
-  res.json(results);
+  return c.json(results);
 });
 
-/** Recently modified files. */
-app.get("/api/recent", (_req, res) => {
+app.get("/api/recent", (c) => {
   const files = collectMdFiles(WORKSPACE);
   const withStats = files.map((relPath) => {
     const full = path.join(WORKSPACE, relPath);
@@ -183,28 +171,25 @@ app.get("/api/recent", (_req, res) => {
     }
   }).filter(Boolean) as { path: string; mtime: number; size: number }[];
   withStats.sort((a, b) => b.mtime - a.mtime);
-  const limit = Math.min(Number(req.query.limit) || 10, 50);
-  res.json(withStats.slice(0, limit));
+  const limit = Math.min(Number(c.req.query("limit")) || 10, 50);
+  return c.json(withStats.slice(0, limit));
 });
 
-/** Monthly file count distribution for memory/ directory. */
-app.get("/api/stats/monthly", (_req, res) => {
+app.get("/api/stats/monthly", (c) => {
   const memoryDir = path.join(WORKSPACE, "memory");
   const counts: Record<string, number> = {};
   let entries: fs.Dirent[];
   try {
     entries = fs.readdirSync(memoryDir, { withFileTypes: true });
   } catch {
-    return void res.json([]);
+    return c.json([]);
   }
   for (const entry of entries) {
     if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
-    // Try to extract YYYY-MM from filename like 2025-01-15.md
     const match = entry.name.match(/^(\d{4}-\d{2})/);
     if (match) {
       counts[match[1]] = (counts[match[1]] || 0) + 1;
     } else {
-      // Use file mtime
       try {
         const stat = fs.statSync(path.join(memoryDir, entry.name));
         const month = stat.mtime.toISOString().slice(0, 7);
@@ -215,31 +200,27 @@ app.get("/api/stats/monthly", (_req, res) => {
   const result = Object.entries(counts)
     .map(([month, count]) => ({ month, count }))
     .sort((a, b) => a.month.localeCompare(b.month));
-  res.json(result);
+  return c.json(result);
 });
 
-/** Bot identity info — reads from SOUL.md or IDENTITY.md. */
-app.get("/api/info", (_req, res) => {
+app.get("/api/info", (c) => {
   let name = "Unknown Bot";
   let description = "";
   for (const fname of ["IDENTITY.md", "SOUL.md"]) {
     const fpath = path.join(WORKSPACE, fname);
     if (fs.existsSync(fpath)) {
       const content = fs.readFileSync(fpath, "utf-8");
-      // Try to extract name from first heading
       const heading = content.match(/^#\s+(.+)/m);
       if (heading) name = heading[1].trim();
-      // First paragraph as description
       const lines = content.split("\n").filter((l) => l.trim() && !l.startsWith("#"));
       if (lines.length > 0) description = lines[0].trim().substring(0, 200);
       break;
     }
   }
-  res.json({ name, version: "1.0.0", description });
+  return c.json({ name, version: "1.0.0", description });
 });
 
-/** System status. */
-app.get("/api/system", (_req, res) => {
+app.get("/api/system", (c) => {
   const uptime = os.uptime();
   const memTotal = os.totalmem();
   const memFree = os.freemem();
@@ -259,28 +240,27 @@ app.get("/api/system", (_req, res) => {
     };
   }
 
-  // Count total files
   const totalFiles = collectMdFiles(WORKSPACE).length;
 
-  res.json({
+  return c.json({
     uptime, memTotal, memFree, memUsed: memTotal - memFree,
     load, platform, hostname, todayMemory, totalFiles,
   });
 });
 
 // ---------------------------------------------------------------------------
-// Gateway Chat Proxy (avoid CORS for frontend)
+// Gateway Chat Proxy
 // ---------------------------------------------------------------------------
-app.post("/api/gateway/chat", async (req, res) => {
-  const { gatewayUrl, token, messages } = req.body;
+app.post("/api/gateway/chat", async (c) => {
+  const { gatewayUrl, token, messages } = await c.req.json();
   if (!gatewayUrl || !token || !messages) {
-    return void res.status(400).json({ error: "Missing gatewayUrl, token, or messages" });
+    return c.json({ error: "Missing gatewayUrl, token, or messages" }, 400);
   }
   try {
     const url = `${gatewayUrl.replace(/\/+$/, "")}/v1/chat/completions`;
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 30000); // 30秒超时
-    
+    const timeout = setTimeout(() => controller.abort(), 30000);
+
     const resp = await fetch(url, {
       method: "POST",
       headers: {
@@ -291,47 +271,39 @@ app.post("/api/gateway/chat", async (req, res) => {
       signal: controller.signal,
     });
     clearTimeout(timeout);
-    
+
     if (!resp.ok) {
       const text = await resp.text();
-      return void res.status(resp.status).json({ error: text });
+      return c.json({ error: text }, resp.status as any);
     }
     const data = await resp.json();
-    res.json(data);
+    return c.json(data);
   } catch (err: any) {
-    if (err.name === 'AbortError') {
-      res.status(504).json({ error: "Gateway request timeout (30s)" });
-    } else {
-      res.status(502).json({ error: err.message || "Gateway request failed" });
+    if (err.name === "AbortError") {
+      return c.json({ error: "Gateway request timeout (30s)" }, 504);
     }
+    return c.json({ error: err.message || "Gateway request failed" }, 502);
   }
 });
 
 // ---------------------------------------------------------------------------
-// Static file serving (production)
-// ---------------------------------------------------------------------------
-if (fs.existsSync(STATIC_DIR)) {
-  // Assets have content hash in filename — cache forever
-  app.use("/assets", express.static(path.join(STATIC_DIR, "assets"), { maxAge: "1y", immutable: true }));
-  // HTML — never cache so updates are picked up immediately
-  app.use(express.static(STATIC_DIR, { maxAge: 0, etag: false }));
-  app.get("/{*path}", (_req, res) => {
-    res.setHeader("Cache-Control", "no-cache, no-store, must-revalidate");
-    res.sendFile(path.join(STATIC_DIR, "index.html"));
-  });
-}
-
-// ---------------------------------------------------------------------------
 // WebSocket — live file change notifications
 // ---------------------------------------------------------------------------
-const wss = new WebSocketServer({ server, path: "/ws" });
+const wsClients = new Set<ServerWebSocket>();
+
+app.get("/ws", upgradeWebSocket(() => ({
+  onOpen(_event, ws) {
+    wsClients.add(ws);
+  },
+  onClose(_event, ws) {
+    wsClients.delete(ws);
+  },
+})));
 
 function broadcast(data: object) {
   const msg = JSON.stringify(data);
-  for (const client of wss.clients) {
-    if (client.readyState === WebSocket.OPEN) {
-      client.send(msg);
-    }
+  for (const ws of wsClients) {
+    try { ws.send(msg); } catch { /* ignore */ }
   }
 }
 
@@ -347,9 +319,28 @@ watcher.on("all", (event, filePath) => {
 });
 
 // ---------------------------------------------------------------------------
+// Static file serving
+// ---------------------------------------------------------------------------
+if (fs.existsSync(STATIC_DIR)) {
+  app.use("/assets/*", serveStatic({
+    root: STATIC_DIR,
+    rewriteRequestPath: (p) => p,
+  }));
+  app.use("*", serveStatic({ root: STATIC_DIR }));
+  // SPA fallback
+  app.get("*", (c) => {
+    const html = fs.readFileSync(path.join(STATIC_DIR, "index.html"), "utf-8");
+    c.header("Cache-Control", "no-cache, no-store, must-revalidate");
+    return c.html(html);
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
-server.listen(PORT, "0.0.0.0", () => {
-  console.log(`📝 Memory Viewer running at http://localhost:${PORT}`);
+const server = serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {
+  console.log(`📝 Memory Viewer running at http://localhost:${info.port}`);
   console.log(`📂 Workspace: ${WORKSPACE}`);
 });
+
+injectWebSocket(server);
