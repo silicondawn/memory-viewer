@@ -3,7 +3,7 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
 import { fetchFile, saveFile, ConflictResult } from "../api";
-import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw } from "lucide-react";
+import { Save, X, Check, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw } from "lucide-react";
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
 import { lazy, Suspense } from "react";
@@ -213,16 +213,16 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
   const [content, setContent] = useState("");
   const [editContent, setEditContent] = useState("");
   const [mtime, setMtime] = useState("");
-  const [editing, setEditing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState("");
   const [conflict, setConflict] = useState<ConflictResult | null>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
+  const previewRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  // Mobile tab: "editor" | "preview"
+  const [mobileTab, setMobileTab] = useState<"editor" | "preview">("editor");
 
   useEffect(() => {
     setLoading(true);
-    setEditing(false);
     fetchFile(filePath)
       .then((data) => {
         setContent(data.content);
@@ -233,9 +233,9 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
       .finally(() => setLoading(false));
   }, [filePath, refreshKey]);
 
-  // Auto-refresh every 10s when not editing (for when WebSocket is unavailable)
+  // Auto-refresh every 10s when content hasn't changed
   useEffect(() => {
-    if (editing) return;
+    if (editContent !== content) return; // don't auto-refresh when user has edits
     const interval = setInterval(() => {
       fetchFile(filePath).then((data) => {
         if (data.mtime !== mtime) {
@@ -246,7 +246,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
       }).catch(() => {});
     }, 10000);
     return () => clearInterval(interval);
-  }, [filePath, editing, mtime]);
+  }, [filePath, editContent, content, mtime]);
 
   const [refreshing, setRefreshing] = useState(false);
   const handleRefresh = useCallback(() => {
@@ -267,7 +267,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
     setTimeout(() => setToast(""), 2000);
   };
 
-  const hasChanges = editing && editContent !== content;
+  const hasChanges = editContent !== content;
 
   const handleSave = useCallback(async (force = false) => {
     try {
@@ -279,7 +279,6 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
       if ("ok" in result && result.ok) {
         setContent(editContent);
         setMtime(result.mtime);
-        setEditing(false);
         setConflict(null);
         showToast(t("file.saved"));
       }
@@ -302,19 +301,9 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
     }
   }, [conflict]);
 
-  const handleCancel = () => {
-    if (hasChanges && !confirm(t("file.discardChanges"))) return;
-    setEditContent(content);
-    setEditing(false);
-  };
-
   const isDark = useMemo(() => {
     return document.documentElement.classList.contains("dark");
-  }, [editing]);
-
-  const handleEdit = () => {
-    setEditing(true);
-  };
+  }, []);
 
   useEffect(() => {
     const handler = (e: BeforeUnloadEvent) => {
@@ -324,21 +313,21 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
     return () => window.removeEventListener("beforeunload", handler);
   }, [hasChanges]);
 
-  const frontMatter = useMemo(() => parseFrontMatter(content), [content]);
+  const previewFrontMatter = useMemo(() => parseFrontMatter(editContent), [editContent]);
 
   const fileStats = useMemo(() => {
-    const bytes = new Blob([content]).size;
-    const words = content.trim() ? content.trim().split(/\s+/).length : 0;
+    const bytes = new Blob([editContent]).size;
+    const words = editContent.trim() ? editContent.trim().split(/\s+/).length : 0;
     const sizeStr = bytes < 1024 ? `${bytes} B` : `${(bytes / 1024).toFixed(1)} KB`;
     return { sizeStr, words };
-  }, [content]);
+  }, [editContent]);
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
+  const handlePreviewScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
     setShowScrollTop(e.currentTarget.scrollTop > 300);
   }, []);
 
   const scrollToTop = () => {
-    contentRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    previewRef.current?.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   if (loading) {
@@ -367,51 +356,72 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
             <span>{fileStats.words} {t("file.words")}</span>
           </span>
           <div className="flex gap-2">
-          {editing ? (
-            <>
-              <button onClick={handleSave} className="btn-primary text-sm flex items-center gap-1">
-                <Save className="w-3.5 h-3.5" /> {t("file.save")}
+            <button onClick={handleRefresh} className="btn-secondary text-sm flex items-center gap-1" disabled={refreshing} title="Refresh file">
+              <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+            </button>
+            <button onClick={() => handleSave()} className="btn-primary text-sm flex items-center gap-1" disabled={!hasChanges}>
+              <Save className="w-3.5 h-3.5" /> {t("file.save")}
+            </button>
+            {hasChanges && (
+              <button onClick={() => { if (confirm(t("file.discardChanges"))) setEditContent(content); }} className="btn-secondary text-sm flex items-center gap-1">
+                <X className="w-3.5 h-3.5" />
               </button>
-              <button onClick={handleCancel} className="btn-secondary text-sm flex items-center gap-1">
-                <X className="w-3.5 h-3.5" /> {t("file.cancel")}
-              </button>
-            </>
-          ) : (
-            <>
-              <button onClick={handleRefresh} className="btn-secondary text-sm flex items-center gap-1" disabled={refreshing} title="Refresh file">
-                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
-              </button>
-              <button onClick={handleEdit} className="btn-secondary text-sm flex items-center gap-1">
-                <Pencil className="w-3.5 h-3.5" /> {t("file.edit")}
-              </button>
-            </>
-          )}
+            )}
           </div>
         </div>
       </header>
 
-      {/* Content */}
-      <div className="flex-1 overflow-auto p-4 sm:p-6 relative" ref={contentRef} onScroll={handleScroll}>
-        {editing ? (
+      {/* Mobile tab switcher */}
+      <div className="sm:hidden flex border-b shrink-0" style={{ borderColor: "var(--border)", background: "var(--bg-secondary)" }}>
+        <button
+          className={`flex-1 py-2 text-sm font-medium text-center transition-colors ${mobileTab === "editor" ? "border-b-2 border-blue-400 text-blue-400" : ""}`}
+          style={mobileTab !== "editor" ? { color: "var(--text-muted)" } : {}}
+          onClick={() => setMobileTab("editor")}
+        >
+          Editor
+        </button>
+        <button
+          className={`flex-1 py-2 text-sm font-medium text-center transition-colors ${mobileTab === "preview" ? "border-b-2 border-blue-400 text-blue-400" : ""}`}
+          style={mobileTab !== "preview" ? { color: "var(--text-muted)" } : {}}
+          onClick={() => setMobileTab("preview")}
+        >
+          Preview
+        </button>
+      </div>
+
+      {/* Dual-pane content */}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {/* Left: Editor */}
+        <div
+          className={`flex-1 min-w-0 overflow-hidden ${mobileTab !== "editor" ? "hidden sm:block" : ""}`}
+          style={{ borderRight: "1px solid var(--border)" }}
+        >
           <Suspense fallback={<div style={{ padding: 20, color: "var(--text-muted)" }}>Loading editor...</div>}>
             <MarkdownEditor
               value={editContent}
               onChange={setEditContent}
-              onSave={handleSave}
+              onSave={() => handleSave()}
               dark={isDark}
             />
           </Suspense>
-        ) : (
+        </div>
+
+        {/* Right: Preview */}
+        <div
+          ref={previewRef}
+          className={`flex-1 min-w-0 overflow-auto p-4 sm:p-6 ${mobileTab !== "preview" ? "hidden sm:block" : ""}`}
+          onScroll={handlePreviewScroll}
+        >
           <article className="markdown-body max-w-3xl mx-auto">
-            {frontMatter.meta && (
+            {previewFrontMatter.meta && (
               <div className="mb-6 p-4 rounded-lg" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
-                {frontMatter.meta.name && (
-                  <h2 className="text-lg font-bold text-blue-400 mb-1">{frontMatter.meta.name}</h2>
+                {previewFrontMatter.meta.name && (
+                  <h2 className="text-lg font-bold text-blue-400 mb-1">{previewFrontMatter.meta.name}</h2>
                 )}
-                {frontMatter.meta.description && (
-                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{frontMatter.meta.description}</p>
+                {previewFrontMatter.meta.description && (
+                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{previewFrontMatter.meta.description}</p>
                 )}
-                {Object.entries(frontMatter.meta)
+                {Object.entries(previewFrontMatter.meta)
                   .filter(([k]) => k !== "name" && k !== "description")
                   .map(([k, v]) => (
                     <span key={k} className="inline-block text-xs rounded px-2 py-0.5 mr-2 mt-2" style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}>
@@ -424,11 +434,9 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
               remarkPlugins={[remarkGfm, remarkFrontmatter]}
               components={{
                 pre({ children }) {
-                  // SyntaxHighlighter handles its own <pre>, so just pass through
                   return <>{children}</>;
                 },
                 code: CodeBlock,
-                // Mask in plain text nodes within paragraphs
                 p({ children }) {
                   return <p>{maskChildren(children)}</p>;
                 },
@@ -439,13 +447,13 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
                   return <td>{maskChildren(children)}</td>;
                 },
               }}
-            >{content}</ReactMarkdown>
+            >{editContent}</ReactMarkdown>
           </article>
-        )}
+        </div>
       </div>
 
       {/* Scroll to top */}
-      {showScrollTop && !editing && (
+      {showScrollTop && (
         <button onClick={scrollToTop} className="scroll-top-btn" title={t("file.backToTop")}>
           <ArrowUp className="w-5 h-5" />
         </button>

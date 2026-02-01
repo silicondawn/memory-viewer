@@ -84,7 +84,7 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
       </div>
 
       {/* Two-column: Recently Modified + Monthly Stats */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         {/* Recently Modified */}
         <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-3" style={{ color: "var(--text-primary)" }}>

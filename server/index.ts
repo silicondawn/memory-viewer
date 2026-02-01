@@ -278,6 +278,9 @@ app.post("/api/gateway/chat", async (req, res) => {
   }
   try {
     const url = `${gatewayUrl.replace(/\/+$/, "")}/v1/chat/completions`;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30000); // 30秒超时
+    
     const resp = await fetch(url, {
       method: "POST",
       headers: {
@@ -285,7 +288,10 @@ app.post("/api/gateway/chat", async (req, res) => {
         Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify({ model: "default", messages }),
+      signal: controller.signal,
     });
+    clearTimeout(timeout);
+    
     if (!resp.ok) {
       const text = await resp.text();
       return void res.status(resp.status).json({ error: text });
@@ -293,7 +299,11 @@ app.post("/api/gateway/chat", async (req, res) => {
     const data = await resp.json();
     res.json(data);
   } catch (err: any) {
-    res.status(502).json({ error: err.message || "Gateway request failed" });
+    if (err.name === 'AbortError') {
+      res.status(504).json({ error: "Gateway request timeout (30s)" });
+    } else {
+      res.status(502).json({ error: err.message || "Gateway request failed" });
+    }
   }
 });
 
