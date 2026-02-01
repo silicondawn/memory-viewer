@@ -13,11 +13,11 @@ services:
       - STATIC_DIR=/app/dist
     volumes:
       # Mount your OpenClaw workspace directory here
-      # 根据你的实际路径修改：
+      # Update the path below to match your actual workspace location
       - ~/.openclaw/workspace:/app/workspace:ro
-      # Windows 示例:
+      # Windows example:
       # - C:/Users/YourName/.openclaw/workspace:/app/workspace:ro
-      # Linux/macOS 其他路径:
+      # Other Linux/macOS paths:
       # - /path/to/your/workspace:/app/workspace:ro
     restart: unless-stopped
     healthcheck:
