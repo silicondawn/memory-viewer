@@ -2,8 +2,8 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
-import { fetchFile, saveFile, ConflictResult } from "../api";
-import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw } from "lucide-react";
+import { fetchFile, saveFile, fetchBacklinks, resolveWikilink, ConflictResult, BacklinkEntry } from "../api";
+import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw, Link2 } from "lucide-react";
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
 import { lazy, Suspense } from "react";
@@ -82,11 +82,26 @@ function parseFrontMatter(raw: string): FrontMatterResult {
   return { meta: Object.keys(meta).length ? meta : null, metadata, body };
 }
 
-/** Recursively wrap string children with SensitiveText */
-function maskChildren(children: React.ReactNode): React.ReactNode {
-  if (typeof children === "string") return <SensitiveText>{children}</SensitiveText>;
+/** Recursively wrap string children with SensitiveText and WikiLinks */
+function maskChildren(children: React.ReactNode, onOpenFile?: (path: string) => void): React.ReactNode {
+  if (typeof children === "string") {
+    // Check for wikilinks first
+    if (children.includes("[[")) {
+      const parts = processWikiLinks(children, onOpenFile);
+      return parts.map((part, i) =>
+        typeof part === "string" ? <SensitiveText key={i}>{part}</SensitiveText> : part
+      );
+    }
+    return <SensitiveText>{children}</SensitiveText>;
+  }
   if (Array.isArray(children)) return children.map((c, i) =>
-    typeof c === "string" ? <SensitiveText key={i}>{c}</SensitiveText> : c
+    typeof c === "string" ? (
+      c.includes("[[") ? (
+        <span key={i}>{processWikiLinks(c, onOpenFile).map((part, j) =>
+          typeof part === "string" ? <SensitiveText key={j}>{part}</SensitiveText> : part
+        )}</span>
+      ) : <SensitiveText key={i}>{c}</SensitiveText>
+    ) : c
   );
   return children;
 }
@@ -224,13 +239,125 @@ function Breadcrumb({ path, hasChanges, onNavigate }: { path: string; hasChanges
   );
 }
 
+/** WikiLink component: renders [[xxx]] as clickable link */
+function WikiLink({ target, onOpenFile }: { target: string; onOpenFile?: (path: string) => void }) {
+  const [resolved, setResolved] = useState<{ found: boolean; path: string | null } | null>(null);
+
+  useEffect(() => {
+    resolveWikilink(target).then(setResolved).catch(() => setResolved({ found: false, path: null }));
+  }, [target]);
+
+  const handleClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (resolved?.found && resolved.path && onOpenFile) {
+      onOpenFile(resolved.path);
+    }
+  };
+
+  if (!resolved) return <span style={{ color: "var(--text-muted)" }}>[[{target}]]</span>;
+
+  if (resolved.found) {
+    return (
+      <a
+        href="#"
+        onClick={handleClick}
+        className="wikilink"
+        style={{ color: "#3b82f6", textDecoration: "underline", cursor: "pointer" }}
+      >
+        {target}
+      </a>
+    );
+  }
+
+  return (
+    <span
+      className="wikilink-broken"
+      style={{ color: "#ef4444", textDecoration: "underline", textDecorationStyle: "dashed", cursor: "default" }}
+      title="File not found"
+    >
+      {target}
+    </span>
+  );
+}
+
+/** Process text to replace [[xxx]] with WikiLink components */
+function processWikiLinks(text: string, onOpenFile?: (path: string) => void): React.ReactNode[] {
+  const parts: React.ReactNode[] = [];
+  const regex = /\[\[([^\]]+)\]\]/g;
+  let lastIndex = 0;
+  let match;
+
+  while ((match = regex.exec(text)) !== null) {
+    if (match.index > lastIndex) {
+      parts.push(text.slice(lastIndex, match.index));
+    }
+    parts.push(<WikiLink key={match.index} target={match[1].trim()} onOpenFile={onOpenFile} />);
+    lastIndex = regex.lastIndex;
+  }
+
+  if (lastIndex < text.length) {
+    parts.push(text.slice(lastIndex));
+  }
+
+  return parts;
+}
+
+/** Backlinks panel */
+function BacklinksPanel({ filePath, onOpenFile }: { filePath: string; onOpenFile?: (path: string) => void }) {
+  const { t } = useLocale();
+  const [backlinks, setBacklinks] = useState<BacklinkEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    fetchBacklinks(filePath)
+      .then(setBacklinks)
+      .catch(() => setBacklinks([]))
+      .finally(() => setLoading(false));
+  }, [filePath]);
+
+  return (
+    <div className="border-t mt-6 pt-4" style={{ borderColor: "var(--border)" }}>
+      <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-3" style={{ color: "var(--text-muted)" }}>
+        <Link2 className="w-4 h-4" />
+        {t("backlinks.title")}
+        {!loading && backlinks.length > 0 && (
+          <span className="text-xs font-normal ml-1" style={{ color: "var(--text-faint)" }}>({backlinks.length})</span>
+        )}
+      </h3>
+      {loading ? (
+        <div className="text-xs" style={{ color: "var(--text-faint)" }}>Loading...</div>
+      ) : backlinks.length === 0 ? (
+        <div className="text-xs" style={{ color: "var(--text-faint)" }}>{t("backlinks.none")}</div>
+      ) : (
+        <div className="space-y-2">
+          {backlinks.map((bl, i) => (
+            <button
+              key={`${bl.path}-${bl.line}-${i}`}
+              onClick={() => onOpenFile?.(bl.path)}
+              className="w-full text-left rounded-lg p-2.5 text-sm transition-colors hover:bg-white/5"
+              style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}
+            >
+              <div className="font-medium text-xs" style={{ color: "var(--link)" }}>{bl.path}</div>
+              <div className="text-xs mt-1 truncate" style={{ color: "var(--text-secondary)" }}>
+                <span style={{ color: "var(--text-faint)" }}>{t("backlinks.line")} {bl.line}:</span> {bl.context}
+              </div>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 interface FileViewerProps {
   filePath: string;
   refreshKey?: number;
   onNavigate?: (dir: string) => void;
+  onOpenFile?: (path: string) => void;
 }
 
-export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps) {
+export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: FileViewerProps) {
   const { t } = useLocale();
   const [content, setContent] = useState("");
   const [editContent, setEditContent] = useState("");
@@ -488,16 +615,17 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
                 code: CodeBlock,
                 // Mask in plain text nodes within paragraphs
                 p({ children }) {
-                  return <p>{maskChildren(children)}</p>;
+                  return <p>{maskChildren(children, onOpenFile)}</p>;
                 },
                 li({ children }) {
-                  return <li>{maskChildren(children)}</li>;
+                  return <li>{maskChildren(children, onOpenFile)}</li>;
                 },
                 td({ children }) {
-                  return <td>{maskChildren(children)}</td>;
+                  return <td>{maskChildren(children, onOpenFile)}</td>;
                 },
               }}
             >{content}</ReactMarkdown>
+            <BacklinksPanel filePath={filePath} onOpenFile={onOpenFile} />
           </article>
         )}
       </div>

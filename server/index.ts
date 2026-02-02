@@ -163,6 +163,96 @@ app.put("/api/file", async (c) => {
   return c.json({ ok: true, mtime: stat.mtime });
 });
 
+// ---------------------------------------------------------------------------
+// Backlinks API
+// ---------------------------------------------------------------------------
+app.get("/api/backlinks", (c) => {
+  const targetPath = (c.req.query("path") || "").trim();
+  if (!targetPath) return c.json({ error: "Missing path parameter" }, 400);
+
+  // Derive possible match targets from the given path
+  // e.g. "MEMORY.md" -> match [[MEMORY]], "memory/2026-02-01.md" -> match [[memory/2026-02-01]]
+  const withoutExt = targetPath.replace(/\.md$/, "");
+  const baseName = path.basename(withoutExt); // just filename without dirs
+
+  const allFiles = collectMdFiles(WORKSPACE);
+  const results: { path: string; line: number; context: string }[] = [];
+
+  const wikiLinkRegex = /\[\[([^\]]+)\]\]/g;
+
+  for (const relPath of allFiles) {
+    // Don't include self-references
+    if (relPath === targetPath) continue;
+
+    const full = path.join(WORKSPACE, relPath);
+    let content: string;
+    try {
+      content = fs.readFileSync(full, "utf-8");
+    } catch {
+      continue;
+    }
+
+    const lines = content.split("\n");
+    for (let i = 0; i < lines.length; i++) {
+      let match;
+      wikiLinkRegex.lastIndex = 0;
+      while ((match = wikiLinkRegex.exec(lines[i])) !== null) {
+        const linkTarget = match[1].trim();
+        // Match if:
+        // 1. Exact path match (without .md): [[memory/2026-02-01]] matches memory/2026-02-01.md
+        // 2. Filename-only match: [[MEMORY]] matches MEMORY.md, [[infra]] matches memory/infra.md
+        if (
+          linkTarget === withoutExt ||
+          linkTarget.toLowerCase() === withoutExt.toLowerCase() ||
+          linkTarget === baseName ||
+          linkTarget.toLowerCase() === baseName.toLowerCase()
+        ) {
+          results.push({
+            path: relPath,
+            line: i + 1,
+            context: lines[i].substring(0, 200),
+          });
+          break; // one match per line is enough
+        }
+      }
+    }
+  }
+
+  return c.json(results);
+});
+
+app.get("/api/resolve-wikilink", (c) => {
+  const link = (c.req.query("link") || "").trim();
+  if (!link) return c.json({ error: "Missing link parameter" }, 400);
+
+  const allFiles = collectMdFiles(WORKSPACE);
+
+  // Try exact path match first
+  const exactPath = link.endsWith(".md") ? link : `${link}.md`;
+  if (allFiles.includes(exactPath)) {
+    return c.json({ found: true, path: exactPath });
+  }
+
+  // Try case-insensitive exact path
+  const exactLower = exactPath.toLowerCase();
+  const ciMatch = allFiles.find((f) => f.toLowerCase() === exactLower);
+  if (ciMatch) {
+    return c.json({ found: true, path: ciMatch });
+  }
+
+  // Try filename-only match (fuzzy)
+  const linkLower = link.toLowerCase();
+  const byName = allFiles.find((f) => {
+    const name = path.basename(f, ".md");
+    return name.toLowerCase() === linkLower;
+  });
+  if (byName) {
+    return c.json({ found: true, path: byName });
+  }
+
+  return c.json({ found: false, path: null });
+});
+
 app.get("/api/search", (c) => {
   const q = (c.req.query("q") || "").trim().toLowerCase();
   if (!q || q.length < 2) return c.json([]);
