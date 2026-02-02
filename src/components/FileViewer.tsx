@@ -404,20 +404,33 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
         ) : (
           <article className="markdown-body max-w-3xl mx-auto">
             {frontMatter.meta && (
-              <div className="mb-6 p-4 rounded-lg" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
-                {frontMatter.meta.name && (
-                  <h2 className="text-lg font-bold text-blue-400 mb-1">{frontMatter.meta.name}</h2>
+              <div className="mb-6 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                {/* Header bar with gradient */}
+                <div className="px-5 py-4" style={{ background: isDark ? "linear-gradient(135deg, #1e293b, #1a1c2b)" : "linear-gradient(135deg, #f5f0eb, #faf8f5)" }}>
+                  <div className="flex items-center gap-3">
+                    {frontMatter.meta.name && (
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🧩</span>
+                        <h2 className="text-lg font-bold" style={{ color: "var(--link)" }}>{frontMatter.meta.name}</h2>
+                      </div>
+                    )}
+                  </div>
+                  {frontMatter.meta.description && (
+                    <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{frontMatter.meta.description}</p>
+                  )}
+                </div>
+                {/* Extra fields as tags */}
+                {Object.entries(frontMatter.meta).filter(([k]) => k !== "name" && k !== "description").length > 0 && (
+                  <div className="px-5 py-2.5 flex flex-wrap gap-2" style={{ background: "var(--bg-tertiary)", borderTop: "1px solid var(--border)" }}>
+                    {Object.entries(frontMatter.meta)
+                      .filter(([k]) => k !== "name" && k !== "description")
+                      .map(([k, v]) => (
+                        <span key={k} className="inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium" style={{ background: "var(--bg-active)", color: "var(--link)" }}>
+                          <span style={{ color: "var(--text-faint)" }}>{k}:</span> {v}
+                        </span>
+                      ))}
+                  </div>
                 )}
-                {frontMatter.meta.description && (
-                  <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{frontMatter.meta.description}</p>
-                )}
-                {Object.entries(frontMatter.meta)
-                  .filter(([k]) => k !== "name" && k !== "description")
-                  .map(([k, v]) => (
-                    <span key={k} className="inline-block text-xs rounded px-2 py-0.5 mr-2 mt-2" style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}>
-                      {k}: {v}
-                    </span>
-                  ))}
               </div>
             )}
             <ReactMarkdown
