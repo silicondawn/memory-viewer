@@ -90,8 +90,10 @@ export function AgentStatusPage() {
   }
 
   const gw = data.gateway || {};
-  const runtime = gw.runtime || {};
-  const isGwRunning = runtime.status === "running" || (runtime.pid && runtime.pid > 0);
+  // Support both flat (gw.runtime) and nested (gw.service.runtime) structures
+  const runtime = gw.runtime || gw.service?.runtime || {};
+  const gwInfo = gw.gateway || {};
+  const isGwRunning = runtime.status === "running" || runtime.state === "active" || (runtime.pid && runtime.pid > 0);
   const hb = data.heartbeat || {};
   const checks = hb.checks || {};
 
