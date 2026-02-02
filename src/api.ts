@@ -151,6 +151,27 @@ export interface AgentStatus {
   heartbeat: any;
 }
 
+export interface BacklinkEntry {
+  path: string;
+  line: number;
+  context: string;
+}
+
+export async function fetchBacklinks(filePath: string): Promise<BacklinkEntry[]> {
+  const r = await fetch(`${_baseUrl}/api/backlinks?path=${encodeURIComponent(filePath)}`);
+  return r.json();
+}
+
+export interface WikilinkResolution {
+  found: boolean;
+  path: string | null;
+}
+
+export async function resolveWikilink(link: string): Promise<WikilinkResolution> {
+  const r = await fetch(`${_baseUrl}/api/resolve-wikilink?link=${encodeURIComponent(link)}`);
+  return r.json();
+}
+
 export async function fetchAgentStatus(): Promise<AgentStatus> {
   const r = await fetch(`${_baseUrl}/api/agent/status`);
   return r.json();

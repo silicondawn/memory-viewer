@@ -1,4 +1,7 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeAll, afterAll } from 'vitest';
+import fs from 'fs';
+import path from 'path';
+import os from 'os';
 import { app } from '../server/index';
 
 describe('Server API', () => {
@@ -17,5 +20,56 @@ describe('Server API', () => {
     const data = await res.json();
     expect(data).toHaveProperty('config');
     expect(data).toHaveProperty('gateway');
+  });
+});
+
+describe('Backlinks API', () => {
+  // These tests rely on the actual WORKSPACE directory (~/clawd by default)
+  // They test the API structure and basic behavior
+
+  it('GET /api/backlinks returns 400 without path', async () => {
+    const res = await app.request('/api/backlinks');
+    expect(res.status).toBe(400);
+  });
+
+  it('GET /api/backlinks returns array for valid path', async () => {
+    const res = await app.request('/api/backlinks?path=MEMORY.md');
+    expect(res.status).toBe(200);
+    const data = await res.json();
+    expect(Array.isArray(data)).toBe(true);
+  });
+
+  it('GET /api/backlinks entries have correct shape', async () => {
+    const res = await app.request('/api/backlinks?path=MEMORY.md');
+    const data = await res.json() as any[];
+    for (const entry of data) {
+      expect(entry).toHaveProperty('path');
+      expect(entry).toHaveProperty('line');
+      expect(entry).toHaveProperty('context');
+      expect(typeof entry.path).toBe('string');
+      expect(typeof entry.line).toBe('number');
+      expect(typeof entry.context).toBe('string');
+    }
+  });
+
+  it('GET /api/resolve-wikilink returns 400 without link', async () => {
+    const res = await app.request('/api/resolve-wikilink');
+    expect(res.status).toBe(400);
+  });
+
+  it('GET /api/resolve-wikilink resolves existing file', async () => {
+    // MEMORY.md should exist in the workspace
+    const res = await app.request('/api/resolve-wikilink?link=MEMORY');
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    expect(data).toHaveProperty('found');
+    expect(data).toHaveProperty('path');
+  });
+
+  it('GET /api/resolve-wikilink returns not found for nonexistent', async () => {
+    const res = await app.request('/api/resolve-wikilink?link=nonexistent-file-that-does-not-exist-12345');
+    expect(res.status).toBe(200);
+    const data = await res.json() as any;
+    expect(data.found).toBe(false);
   });
 });

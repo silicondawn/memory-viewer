@@ -394,7 +394,7 @@ export default function App() {
               <Dashboard onOpenFile={openFile} />
             </div>
           ) : (
-            <FileViewer filePath={activeFile} refreshKey={refreshKey} />
+            <FileViewer filePath={activeFile} refreshKey={refreshKey} onOpenFile={openFile} />
           )}
         </div>
       </main>
