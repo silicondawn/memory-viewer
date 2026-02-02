@@ -1,12 +1,11 @@
-[中文](./README.zh-CN.md) | **English**
-
-# 📝 Memory Viewer
+# 📝 Memory Viewer for OpenClaw
 
 [![MIT License](https://img.shields.io/badge/license-MIT-blue.svg)](./LICENSE)
 [![Node.js](https://img.shields.io/badge/node-%3E%3D18-brightgreen.svg)](https://nodejs.org/)
 [![Version](https://img.shields.io/badge/version-1.2.0-orange.svg)](https://github.com/silicondawn/memory-viewer/releases/tag/v1.2.0)
+[![OpenClaw](https://img.shields.io/badge/OpenClaw-Compatible-blue)](https://openclaw.com)
 
-A beautiful, dark-themed web UI for browsing and editing an AI agent's memory files. Built for [OpenClaw](https://openclaw.com) agents that store context in Markdown files.
+A beautiful, dark-themed web UI for browsing and editing OpenClaw AI agent memory files. Built specifically for [OpenClaw](https://openclaw.com) agents that store context in Markdown files.
 
 <p align="center">
   <img src="./docs/screenshot-dashboard-dark.png" width="48%" alt="Dashboard (Dark)">
@@ -20,6 +19,16 @@ A beautiful, dark-themed web UI for browsing and editing an AI agent's memory fi
   <img src="./docs/screenshot-editor-dark.png" width="48%" alt="Editor">
   <img src="./docs/screenshot-search-dark.png" width="48%" alt="Search">
 </p>
+
+## Why Memory Viewer for OpenClaw?
+
+OpenClaw agents store their memory in Markdown files (`MEMORY.md`, `memory/*.md`). Memory Viewer provides a dedicated web interface to:
+
+- **Browse** memory files in a collapsible tree
+- **Search** across all agent memories instantly
+- **Edit** files directly in the browser
+- **Monitor** agent system status and memory usage
+- **Connect** to multiple OpenClaw agents from a single UI
 
 ## Features
 
@@ -51,28 +60,30 @@ npm install
 npm run dev
 ```
 
-Open [http://localhost:5173](http://localhost:5173) in your browser.
+Then open http://localhost:5173 in your browser.
 
-## Configuration
+## OpenClaw Integration
 
-Set environment variables to customize:
+Memory Viewer works seamlessly with OpenClaw agents. To connect to your OpenClaw agent:
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `3001` | API server port |
-| `WORKSPACE_DIR` | `~/clawd` | Root directory containing `.md` files |
-| `STATIC_DIR` | `./dist` | Directory for built frontend assets |
+1. Make sure your OpenClaw agent is running and accessible
+2. In Memory Viewer, click the network icon in the top-right
+3. Add your agent's workspace path (e.g., `/home/user/clawd`)
+4. Start browsing and editing your agent's memory files
 
-## Production
+## Deployment
+
+Memory Viewer can be deployed as a standalone service:
 
 ```bash
-# Build the frontend
+# Build for production
 npm run build
 
-# Start the production server (serves API + static files)
-PORT=8901 npm start
+# Start production server
+npm start
 ```
 
+<<<<<<< HEAD
 The production server serves both the API and the built frontend from a single process.
 
 ## Docker Deployment
@@ -187,7 +198,10 @@ memory-viewer/
 | `Ctrl+K` / `⌘K` | Open search |
 | `Ctrl+S` / `⌘S` | Save file (in edit mode) |
 | `Escape` | Close search |
+=======
+The server runs on port 8901 by default. You can expose it via Cloudflare Tunnel, Nginx, or any reverse proxy.
+>>>>>>> 8a5d972 (docs: 强化OpenClaw关联，更新仓库描述和README)
 
 ## License
 
-MIT © [Silicon Dawn](https://github.com/silicondawn)
+MIT © Silicon Dawn
