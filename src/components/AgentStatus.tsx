@@ -75,8 +75,38 @@ export function AgentStatusPage() {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-500"></div>
+      <div className="h-full overflow-y-auto p-6 lg:p-10">
+        <div className="max-w-5xl mx-auto space-y-8 animate-pulse">
+          {/* Header skeleton */}
+          <div className="mb-8">
+            <div className="flex items-center gap-3 mb-2">
+              <div className="w-8 h-8 rounded-lg" style={{ background: "var(--bg-hover)" }} />
+              <div className="h-8 w-48 rounded-lg" style={{ background: "var(--bg-hover)" }} />
+            </div>
+            <div className="h-4 w-32 rounded ml-11 mt-2" style={{ background: "var(--bg-hover)" }} />
+          </div>
+
+          {/* Cards skeleton */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[1, 2, 3].map((i) => (
+              <div key={i} className="p-5 rounded-xl border" style={{ background: "var(--bg-secondary)", borderColor: "var(--border)" }}>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-9 h-9 rounded-lg" style={{ background: "var(--bg-hover)" }} />
+                  <div className="h-5 w-24 rounded" style={{ background: "var(--bg-hover)" }} />
+                </div>
+                <div className="space-y-3">
+                  <div className="h-10 rounded-lg" style={{ background: "var(--bg-hover)", opacity: 0.6 }} />
+                  <div className="h-4 w-full rounded" style={{ background: "var(--bg-hover)", opacity: 0.4 }} />
+                  <div className="h-4 w-3/4 rounded" style={{ background: "var(--bg-hover)", opacity: 0.4 }} />
+                  <div className="h-4 w-2/3 rounded" style={{ background: "var(--bg-hover)", opacity: 0.4 }} />
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Config skeleton */}
+          <div className="h-14 rounded-xl border" style={{ background: "var(--bg-secondary)", borderColor: "var(--border)" }} />
+        </div>
       </div>
     );
   }
