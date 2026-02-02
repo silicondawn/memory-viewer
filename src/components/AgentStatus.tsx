@@ -45,14 +45,18 @@ function TimeAgo({ date }: { date: string | number }) {
   return <span title={d.toLocaleString()}>{text}</span>;
 }
 
+// Module-level cache so switching tabs doesn't re-fetch
+let _cache: { data: AgentStatus; html: string } | null = null;
+
 export function AgentStatusPage() {
-  const [data, setData] = useState<AgentStatus | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [html, setHtml] = useState("");
+  const [data, setData] = useState<AgentStatus | null>(_cache?.data ?? null);
+  const [loading, setLoading] = useState(!_cache);
+  const [html, setHtml] = useState(_cache?.html ?? "");
   const [configExpanded, setConfigExpanded] = useState(false);
   const { t } = useLocale();
 
   useEffect(() => {
+    if (_cache) return; // Already have data, skip fetch
     fetchAgentStatus()
       .then(d => {
         setData(d);
@@ -69,6 +73,7 @@ export function AgentStatusPage() {
             defaultColor: false,
           });
           setHtml(out);
+          _cache = { data: d, html: out };
         });
       })
       .catch(err => {

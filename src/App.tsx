@@ -99,7 +99,9 @@ export default function App() {
           return;
         }
       }
-      // other hash routes could go here
+      if (hash === "#/agent-status") { setView("agent-status"); return; }
+      if (hash === "#/connections") { setView("connections"); return; }
+      if (hash === "#/changelog") { setView("changelog"); return; }
     };
     readHash();
     window.addEventListener("popstate", readHash);
@@ -254,7 +256,7 @@ export default function App() {
               })}
               <div className="border-t my-1" style={{ borderColor: "var(--border)" }} />
               <button
-                onClick={() => { setBotSelectorOpen(false); setView("connections"); }}
+                onClick={() => { setBotSelectorOpen(false); setView("connections"); window.history.pushState(null, "", "#/connections"); }}
                 className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-white/5"
                 style={{ color: "var(--text-muted)" }}
               >
@@ -277,18 +279,42 @@ export default function App() {
           </kbd>
         </button>
 
-        {/* Agent Status */}
-        <button
-          onClick={() => { setView("agent-status"); setSidebarOpen(false); }}
-          className="mx-3 mt-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5"
-          style={{ 
-            color: view === "agent-status" ? "var(--link)" : "var(--text-secondary)",
-            background: view === "agent-status" ? "var(--bg-active)" : undefined 
-          }}
-        >
-          <Activity className="w-4 h-4" />
-          {t("sidebar.agentConfig")}
-        </button>
+        {/* Navigation */}
+        <nav className="mx-3 mt-2 flex flex-col gap-0.5">
+          <button
+            onClick={() => { goHome(); }}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5"
+            style={{
+              color: view === "dashboard" ? "var(--link)" : "var(--text-secondary)",
+              background: view === "dashboard" ? "var(--bg-active)" : undefined,
+            }}
+          >
+            <BookOpen className="w-4 h-4" />
+            {t("dashboard.title")}
+          </button>
+          <button
+            onClick={() => { setView("agent-status"); setSidebarOpen(false); window.history.pushState(null, "", "#/agent-status"); }}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5"
+            style={{
+              color: view === "agent-status" ? "var(--link)" : "var(--text-secondary)",
+              background: view === "agent-status" ? "var(--bg-active)" : undefined,
+            }}
+          >
+            <Activity className="w-4 h-4" />
+            {t("sidebar.agentConfig")}
+          </button>
+          <button
+            onClick={() => { setView("connections"); setSidebarOpen(false); window.history.pushState(null, "", "#/connections"); }}
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5"
+            style={{
+              color: view === "connections" ? "var(--link)" : "var(--text-secondary)",
+              background: view === "connections" ? "var(--bg-active)" : undefined,
+            }}
+          >
+            <Network className="w-4 h-4" />
+            {t("connections.title")}
+          </button>
+        </nav>
 
         {/* Skills + File tree */}
         <div className="flex-1 overflow-y-auto px-2 py-3">
@@ -331,7 +357,7 @@ export default function App() {
         <div className="sidebar-footer px-4 py-2.5 border-t text-xs flex items-center justify-between">
           <span>{t("sidebar.footer")}</span>
           <button
-            onClick={() => { setView("changelog"); setSidebarOpen(false); }}
+            onClick={() => { setView("changelog"); setSidebarOpen(false); window.history.pushState(null, "", "#/changelog"); }}
             className="hover:text-blue-400 transition-colors"
             style={{ color: "var(--text-muted)" }}
           >
