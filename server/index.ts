@@ -29,6 +29,7 @@ const WORKSPACE = process.env.WORKSPACE_DIR || path.join(os.homedir(), "clawd");
 const STATIC_DIR = process.env.STATIC_DIR || path.join(import.meta.dirname, "..", "dist");
 
 const app = new Hono();
+export { app }; // Export for testing
 const { injectWebSocket, upgradeWebSocket } = createNodeWebSocket({ app });
 
 app.use("*", compress());
@@ -456,9 +457,11 @@ if (fs.existsSync(STATIC_DIR)) {
 // ---------------------------------------------------------------------------
 // Start
 // ---------------------------------------------------------------------------
-const server = serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {
-  console.log(`📝 Memory Viewer running at http://localhost:${info.port}`);
-  console.log(`📂 Workspace: ${WORKSPACE}`);
-});
+if (process.env.NODE_ENV !== 'test') {
+  const server = serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {
+    console.log(`📝 Memory Viewer running at http://localhost:${info.port}`);
+    console.log(`📂 Workspace: ${WORKSPACE}`);
+  });
+  injectWebSocket(server);
+}
 
-injectWebSocket(server);
