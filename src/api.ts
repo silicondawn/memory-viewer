@@ -50,6 +50,13 @@ export interface BotInfo {
   description: string;
 }
 
+export interface SkillInfo { id: string; name: string; description: string; path: string; }
+
+export async function fetchSkills(): Promise<SkillInfo[]> {
+  const r = await fetch(`${_baseUrl}/api/skills`);
+  return r.json();
+}
+
 export async function fetchFiles(): Promise<FileNode[]> {
   const r = await fetch(`${_baseUrl}/api/files`);
   return r.json();
@@ -114,6 +121,13 @@ export async function fetchRecent(limit = 10): Promise<RecentFile[]> {
 
 export async function fetchMonthlyStats(): Promise<MonthlyStats[]> {
   const r = await fetch(`${_baseUrl}/api/stats/monthly`);
+  return r.json();
+}
+
+export interface DailyStats { date: string; count: number; size: number; }
+
+export async function fetchDailyStats(): Promise<DailyStats[]> {
+  const r = await fetch(`${_baseUrl}/api/stats/daily`);
   return r.json();
 }
 

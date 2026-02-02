@@ -95,6 +95,34 @@ function collectMdFiles(dir: string, prefix = ""): string[] {
 // REST API
 // ---------------------------------------------------------------------------
 
+app.get("/api/skills", (c) => {
+  const skillsDir = path.join(WORKSPACE, "skills");
+  const results: { id: string; name: string; description: string; path: string }[] = [];
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(skillsDir, { withFileTypes: true });
+  } catch {
+    return c.json([]);
+  }
+  for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+    if (!entry.isDirectory() || entry.name.startsWith(".")) continue;
+    const skillMd = path.join(skillsDir, entry.name, "SKILL.md");
+    if (!fs.existsSync(skillMd)) continue;
+    const content = fs.readFileSync(skillMd, "utf-8");
+    let name = entry.name;
+    let description = "";
+    const fmMatch = content.match(/^---\s*\n([\s\S]*?)\n---/);
+    if (fmMatch) {
+      const nameMatch = fmMatch[1].match(/^name:\s*(.+)/m);
+      const descMatch = fmMatch[1].match(/^description:\s*(.+)/m);
+      if (nameMatch) name = nameMatch[1].trim().replace(/^["']|["']$/g, "");
+      if (descMatch) description = descMatch[1].trim().replace(/^["']|["']$/g, "");
+    }
+    results.push({ id: entry.name, name, description, path: `skills/${entry.name}/SKILL.md` });
+  }
+  return c.json(results);
+});
+
 app.get("/api/files", (c) => c.json(scanDir(WORKSPACE)));
 
 app.get("/api/file", (c) => {
@@ -201,6 +229,39 @@ app.get("/api/stats/monthly", (c) => {
     .map(([month, count]) => ({ month, count }))
     .sort((a, b) => a.month.localeCompare(b.month));
   return c.json(result);
+});
+
+app.get("/api/stats/daily", (c) => {
+  const memoryDir = path.join(WORKSPACE, "memory");
+  const results: { date: string; count: number; size: number }[] = [];
+  let entries: fs.Dirent[];
+  try {
+    entries = fs.readdirSync(memoryDir, { withFileTypes: true });
+  } catch {
+    return c.json([]);
+  }
+  const dateMap = new Map<string, { count: number; size: number }>();
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith(".md")) continue;
+    const match = entry.name.match(/^(\d{4}-\d{2}-\d{2})/);
+    if (!match) continue;
+    const date = match[1];
+    try {
+      const stat = fs.statSync(path.join(memoryDir, entry.name));
+      const existing = dateMap.get(date);
+      if (existing) {
+        existing.count++;
+        existing.size += stat.size;
+      } else {
+        dateMap.set(date, { count: 1, size: stat.size });
+      }
+    } catch { /* skip */ }
+  }
+  for (const [date, val] of dateMap) {
+    results.push({ date, count: val.count, size: val.size });
+  }
+  results.sort((a, b) => a.date.localeCompare(b.date));
+  return c.json(results);
 });
 
 app.get("/api/info", (c) => {

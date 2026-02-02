@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { fetchSystem, fetchRecent, fetchMonthlyStats, type SystemInfo, type RecentFile, type MonthlyStats } from "../api";
+import { fetchSystem, fetchRecent, fetchDailyStats, type SystemInfo, type RecentFile, type DailyStats } from "../api";
+import { ContributionHeatmap } from "./ContributionHeatmap";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { LayoutDashboard, FileText, Clock, BarChart3, Zap } from "lucide-react";
@@ -37,12 +38,12 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
   const { t } = useLocale();
   const [info, setInfo] = useState<SystemInfo | null>(null);
   const [recent, setRecent] = useState<RecentFile[]>([]);
-  const [monthly, setMonthly] = useState<MonthlyStats[]>([]);
+  const [daily, setDaily] = useState<DailyStats[]>([]);
 
   useEffect(() => {
     fetchSystem().then(setInfo).catch(console.error);
     fetchRecent(10).then(setRecent).catch(console.error);
-    fetchMonthlyStats().then(setMonthly).catch(console.error);
+    fetchDailyStats().then(setDaily).catch(console.error);
   }, []);
 
   if (!info) {
@@ -55,7 +56,6 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
   }
 
   const memPercent = ((info.memUsed / info.memTotal) * 100).toFixed(1);
-  const maxCount = Math.max(...monthly.map((m) => m.count), 1);
 
   // Quick access: pinned + recent files not in pinned
   const recentQuick = recent
@@ -113,34 +113,13 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
           </div>
         </section>
 
-        {/* Monthly Stats Bar Chart */}
+        {/* Memory Activity Heatmap */}
         <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-3" style={{ color: "var(--text-primary)" }}>
             <BarChart3 className="w-5 h-5 text-purple-400" /> {t("dashboard.memoryByMonth")}
           </h2>
-          {monthly.length > 0 ? (
-            <div className="space-y-2">
-              {monthly.slice(-8).map((m) => (
-                <div key={m.month} className="flex items-center gap-2 text-xs">
-                  <span className="w-16 shrink-0 text-right" style={{ color: "var(--text-faint)" }}>
-                    {m.month}
-                  </span>
-                  <div className="flex-1 rounded-full overflow-hidden h-4" style={{ background: "var(--bg-hover)" }}>
-                    <div
-                      className="h-full rounded-full transition-all"
-                      style={{
-                        width: `${(m.count / maxCount) * 100}%`,
-                        background: "linear-gradient(90deg, #6366f1, #8b5cf6)",
-                        minWidth: "8px",
-                      }}
-                    />
-                  </div>
-                  <span className="w-6 text-right font-mono" style={{ color: "var(--text-muted)" }}>
-                    {m.count}
-                  </span>
-                </div>
-              ))}
-            </div>
+          {daily.length > 0 ? (
+            <ContributionHeatmap data={daily} onOpenFile={onOpenFile} />
           ) : (
             <p className="text-sm italic" style={{ color: "var(--text-faint)" }}>{t("dashboard.noMemoryFiles")}</p>
           )}

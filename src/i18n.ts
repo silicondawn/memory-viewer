@@ -3,6 +3,7 @@ export type Locale = "en" | "zh";
 const dict: Record<string, Record<Locale, string>> = {
   // Sidebar
   "sidebar.agentConfig": { en: "Agent Config", zh: "智能体配置" },
+  "sidebar.skills": { en: "Skills", zh: "技能" },
   "sidebar.files": { en: "Files", zh: "文件" },
   "sidebar.search": { en: "Search…", zh: "搜索…" },
   "sidebar.footer": { en: "Silicon Dawn · Memory Viewer", zh: "Silicon Dawn · 记忆查看器" },
@@ -99,6 +100,14 @@ const dict: Record<string, Record<Locale, string>> = {
   "bootstrap.close": { en: "Close", zh: "关闭" },
   "bootstrap.error": { en: "Error", zh: "错误" },
   "bootstrap.done": { en: "Done", zh: "完成" },
+
+  // Heatmap
+  "heatmap.activeDays": { en: "active days", zh: "个活跃日" },
+  "heatmap.total": { en: "total", zh: "总计" },
+  "heatmap.perDay": { en: "/day", zh: "/天" },
+  "heatmap.less": { en: "Less", zh: "少" },
+  "heatmap.more": { en: "More", zh: "多" },
+  "heatmap.noData": { en: "No data", zh: "无数据" },
 
   // Months
   "month.01": { en: "Jan", zh: "1月" },

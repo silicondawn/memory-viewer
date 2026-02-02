@@ -1,5 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import { fetchFiles, setBaseUrl, getBaseUrl, type FileNode } from "./api";
+import { fetchFiles, fetchSkills, setBaseUrl, getBaseUrl, type FileNode, type SkillInfo } from "./api";
 import { FileTree } from "./components/FileTree";
 import { FileViewer } from "./components/FileViewer";
 import { Dashboard } from "./components/Dashboard";
@@ -10,17 +10,25 @@ import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
 import { useConnections } from "./hooks/useConnections";
-import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, RefreshCw } from "lucide-react";
+import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, RefreshCw, Settings, Monitor, Puzzle, ChevronRight } from "lucide-react";
+import { useZoom } from "./hooks/useZoom";
+import { useResizableSidebar } from "./hooks/useResizableSidebar";
 import { useLocaleState, LocaleContext } from "./hooks/useLocale";
 
 export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
+  const [skills, setSkills] = useState<SkillInfo[]>([]);
+  const [skillsOpen, setSkillsOpen] = useState(true);
   const [activeFile, setActiveFile] = useState("");
   const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [botSelectorOpen, setBotSelectorOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [teslaMode, setTeslaMode] = useState(() => localStorage.getItem("memory-viewer-tesla") === "true");
+  const { zoom, setZoom, ZOOM_LEVELS } = useZoom();
+  const { width: sidebarWidth, onMouseDown: onResizeMouseDown } = useResizableSidebar();
   const { theme, toggle: toggleTheme } = useTheme();
   const sensitive = useSensitiveState();
   const localeState = useLocaleState();
@@ -34,6 +42,7 @@ export default function App() {
 
   const loadFiles = useCallback(() => {
     fetchFiles().then(setFiles).catch(console.error);
+    fetchSkills().then(setSkills).catch(console.error);
   }, []);
 
   // Reload files when active connection changes
@@ -68,6 +77,14 @@ export default function App() {
     setTimeout(() => document.addEventListener("click", handler), 0);
     return () => document.removeEventListener("click", handler);
   }, [botSelectorOpen]);
+
+  // Close settings on outside click
+  useEffect(() => {
+    if (!settingsOpen) return;
+    const handler = () => setSettingsOpen(false);
+    setTimeout(() => document.addEventListener("click", handler), 0);
+    return () => document.removeEventListener("click", handler);
+  }, [settingsOpen]);
 
   // Sync hash → state on load and popstate
   useEffect(() => {
@@ -114,7 +131,7 @@ export default function App() {
   return (
     <LocaleContext.Provider value={localeState}>
     <SensitiveProvider value={sensitive}>
-    <div className={`flex h-dvh ${sensitive.hidden ? "" : "sensitive-revealed"}`} style={{ background: "var(--bg-primary)", color: "var(--text-primary)" }}>
+    <div className={`flex ${sensitive.hidden ? "" : "sensitive-revealed"} ${teslaMode ? "tesla-mode" : ""}`} style={{ background: "var(--bg-primary)", color: "var(--text-primary)", transform: `scale(${zoom / 100})`, transformOrigin: "top left", width: `${10000 / zoom}%`, height: `${10000 / zoom}vh`, overflow: "hidden" }}>
       {/* Mobile overlay */}
       {sidebarOpen && (
         <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
@@ -122,9 +139,10 @@ export default function App() {
 
       {/* Sidebar */}
       <aside
-        className={`sidebar fixed z-40 lg:static lg:z-auto inset-y-0 left-0 w-80 lg:w-96 border-r flex flex-col shrink-0 transition-transform duration-200 ${
+        className={`sidebar fixed z-40 lg:static lg:z-auto inset-y-0 left-0 w-80 border-r flex flex-col shrink-0 transition-transform duration-200 lg:relative ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
+        style={{ width: window.innerWidth >= 1024 ? `${sidebarWidth}px` : undefined }}
       >
         {/* Header */}
         <div className="sidebar-header px-4 py-3 border-b">
@@ -149,6 +167,48 @@ export default function App() {
             <button onClick={toggleLocale} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={locale === "en" ? "切换到中文" : "Switch to English"}>
               <Languages className="w-3.5 h-3.5" />
             </button>
+            <div className="relative">
+              <button onClick={(e) => { e.stopPropagation(); setSettingsOpen(!settingsOpen); }} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title="Settings">
+                <Settings className="w-3.5 h-3.5" />
+              </button>
+              {settingsOpen && (
+                <div
+                  className="absolute top-full left-0 mt-2 rounded-lg shadow-lg z-50 p-3 w-52"
+                  style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Zoom Level</div>
+                  <div className="flex flex-wrap gap-1">
+                    {ZOOM_LEVELS.map((level) => (
+                      <button
+                        key={level}
+                        onClick={() => setZoom(level)}
+                        className="px-2 py-1 rounded text-xs transition-colors"
+                        style={{
+                          background: zoom === level ? "var(--bg-active)" : "var(--bg-hover)",
+                          color: zoom === level ? "var(--link)" : "var(--text-secondary)",
+                          border: zoom === level ? "1px solid var(--link)" : "1px solid var(--border)",
+                          fontWeight: zoom === level ? 600 : 400,
+                        }}
+                      >
+                        {level}%
+                      </button>
+                    ))}
+                  </div>
+                  <div className="border-t mt-3 pt-3" style={{ borderColor: "var(--border)" }}>
+                    <button
+                      onClick={() => { const v = !teslaMode; setTeslaMode(v); localStorage.setItem("memory-viewer-tesla", String(v)); }}
+                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors"
+                      style={{ background: teslaMode ? "var(--bg-active)" : "var(--bg-hover)", color: teslaMode ? "var(--link)" : "var(--text-secondary)" }}
+                    >
+                      <Monitor className="w-3.5 h-3.5" />
+                      Tesla Mode
+                      {teslaMode && <span className="ml-auto text-[10px]">✓</span>}
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
 
@@ -216,8 +276,40 @@ export default function App() {
           </kbd>
         </button>
 
-        {/* File tree */}
+        {/* Skills + File tree */}
         <div className="flex-1 overflow-y-auto px-2 py-3">
+          {skills.length > 0 && (
+            <div className="mb-2">
+              <button
+                onClick={() => setSkillsOpen(!skillsOpen)}
+                className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold uppercase tracking-wide w-full hover:opacity-80 transition-opacity"
+                style={{ color: "var(--text-muted)" }}
+              >
+                <ChevronRight className={`w-3 h-3 transition-transform ${skillsOpen ? "rotate-90" : ""}`} />
+                <Puzzle className="w-3.5 h-3.5" />
+                {t("sidebar.skills")}
+                <span className="ml-auto text-[10px] font-normal">{skills.length}</span>
+              </button>
+              {skillsOpen && (
+                <div className="mt-1">
+                  {skills.map((skill) => (
+                    <button
+                      key={skill.id}
+                      onClick={() => openFile(skill.path)}
+                      className="w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors truncate hover:bg-white/5"
+                      style={{
+                        color: activeFile === skill.path ? "var(--link)" : "var(--text-secondary)",
+                        background: activeFile === skill.path ? "var(--bg-active)" : undefined,
+                      }}
+                      title={skill.description || skill.name}
+                    >
+                      {skill.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
           <FileTree nodes={files} activeFile={activeFile} onSelect={openFile} />
         </div>
 
@@ -232,6 +324,13 @@ export default function App() {
             v1.1.0
           </button>
         </div>
+
+        {/* Resize handle */}
+        <div
+          className="hidden lg:block absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500/30 transition-colors"
+          style={{ zIndex: 50 }}
+          onMouseDown={onResizeMouseDown}
+        />
       </aside>
 
       {/* Main content */}
