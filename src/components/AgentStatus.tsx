@@ -57,13 +57,17 @@ export function AgentStatusPage() {
       .then(d => {
         setData(d);
         setLoading(false);
-        // Highlight config
+        // Highlight config with dual theme
         createHighlighter({
           themes: ['github-dark', 'github-light'],
           langs: ['json']
         }).then(highlighter => {
           const code = JSON.stringify(d.config, null, 2);
-          const out = highlighter.codeToHtml(code, { lang: 'json', theme: 'github-dark' });
+          const out = highlighter.codeToHtml(code, {
+            lang: 'json',
+            themes: { dark: 'github-dark', light: 'github-light' },
+            defaultColor: false,
+          });
           setHtml(out);
         });
       })
@@ -213,8 +217,8 @@ export function AgentStatusPage() {
           {configExpanded && (
             <div className="p-0 border-t" style={{ borderColor: "var(--border)" }}>
               <div 
-                className="p-4 overflow-x-auto text-sm font-mono"
-                style={{ background: "#0d1117" }} // GitHub dark bg
+                className="p-4 overflow-x-auto text-sm font-mono shiki-wrapper"
+                style={{ background: "var(--bg-primary)" }}
                 dangerouslySetInnerHTML={{ __html: html || "<pre>Loading...</pre>" }}
               />
             </div>
