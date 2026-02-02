@@ -190,7 +190,7 @@ export function AgentStatusPage() {
              </div>
              <div className="space-y-1 mt-2">
                {Object.entries(checks).map(([k, v]) => (
-                 <StatusRow key={k} label={k} value={v ? <TimeAgo date={(v as number) * 1000} /> : "-"} />
+                 <StatusRow key={k} label={k} value={v ? <TimeAgo date={v as number} /> : "-"} />
                ))}
              </div>
           </StatusCard>
