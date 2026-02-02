@@ -53,21 +53,33 @@ function MermaidBlock({ code }: { code: string }) {
 }
 
 /** Extract YAML front matter and return { meta, body } */
-function parseFrontMatter(raw: string): { meta: Record<string, string> | null; body: string } {
+interface FrontMatterResult {
+  meta: Record<string, string> | null;
+  metadata: Record<string, any> | null;
+  body: string;
+}
+
+function parseFrontMatter(raw: string): FrontMatterResult {
   const match = raw.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!match) return { meta: null, body: raw };
+  if (!match) return { meta: null, metadata: null, body: raw };
   const yamlBlock = match[1];
   const body = match[2];
   const meta: Record<string, string> = {};
+  let metadata: Record<string, any> | null = null;
   for (const line of yamlBlock.split("\n")) {
     const idx = line.indexOf(":");
     if (idx > 0) {
       const key = line.slice(0, idx).trim();
       const val = line.slice(idx + 1).trim().replace(/^['"]|['"]$/g, "");
-      if (key && val) meta[key] = val;
+      if (!key || !val) continue;
+      if (key === "metadata") {
+        try { metadata = JSON.parse(val); } catch { meta[key] = val; }
+      } else {
+        meta[key] = val;
+      }
     }
   }
-  return { meta: Object.keys(meta).length ? meta : null, body };
+  return { meta: Object.keys(meta).length ? meta : null, metadata, body };
 }
 
 /** Recursively wrap string children with SensitiveText */
@@ -79,24 +91,52 @@ function maskChildren(children: React.ReactNode): React.ReactNode {
   return children;
 }
 
-/** Code block with copy button */
-import { Prism as SyntaxHighlighter } from "react-syntax-highlighter";
-import { materialOceanic } from "react-syntax-highlighter/dist/esm/styles/prism";
-import { oneLight } from "react-syntax-highlighter/dist/esm/styles/prism";
+/** Shiki highlighter singleton */
+import { createHighlighter, type Highlighter } from "shiki";
 
+let highlighterPromise: Promise<Highlighter> | null = null;
+function getHighlighter(): Promise<Highlighter> {
+  if (!highlighterPromise) {
+    highlighterPromise = createHighlighter({
+      themes: ["github-dark", "github-light"],
+      langs: ["bash", "javascript", "typescript", "python", "json", "yaml", "markdown", "css", "html", "go", "rust", "sql", "diff", "dockerfile", "toml", "ini", "tsx", "jsx", "java", "c", "cpp", "shell", "ruby", "php", "swift", "kotlin"],
+    });
+  }
+  return highlighterPromise;
+}
+
+/** Code block with copy button */
 function CodeBlock({ className, children, ...props }: any) {
   const { t } = useLocale();
   const [copied, setCopied] = useState(false);
+  const [html, setHtml] = useState<string>("");
   const match = /language-(\w+)/.exec(className || "");
   const text = String(children).replace(/\n$/, "");
   const isBlock = !!match || text.includes("\n");
+  const isDark = document.documentElement.classList.contains("dark");
+
+  useEffect(() => {
+    if (!isBlock || !match) return;
+    if (match[1] === "mermaid") return;
+    let cancelled = false;
+    getHighlighter().then((hl) => {
+      if (cancelled) return;
+      const lang = hl.getLoadedLanguages().includes(match[1] as any) ? match[1] : "text";
+      const result = hl.codeToHtml(text, {
+        lang,
+        theme: isDark ? "github-dark" : "github-light",
+      });
+      setHtml(result);
+    });
+    return () => { cancelled = true; };
+  }, [text, match?.[1], isDark, isBlock]);
+
   if (!isBlock) {
     if (typeof children === "string") {
       return <code {...props}><SensitiveText>{children}</SensitiveText></code>;
     }
     return <code {...props}>{children}</code>;
   }
-  const isDark = document.documentElement.classList.contains("dark");
   // Mermaid diagrams
   if (match && match[1] === "mermaid") {
     return <MermaidBlock code={text} />;
@@ -139,36 +179,18 @@ function CodeBlock({ className, children, ...props }: any) {
       >
         {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
       </button>
-      <SyntaxHighlighter
-        style={isDark ? materialOceanic : oneLight}
-        language={match[1]}
-        showLineNumbers
-        wrapLines
-        PreTag="div"
-        lineProps={{ style: { background: "transparent" } }}
-        customStyle={{
-          margin: 0,
-          borderRadius: "0.75rem",
-          fontSize: "0.85rem",
-          lineHeight: "1.7",
-          border: `1px solid var(--pre-border)`,
-          padding: "1rem",
-          background: "var(--pre-bg)",
-        }}
-        codeTagProps={{
-          style: { fontFamily: "'JetBrains Mono', 'Fira Code', monospace", background: "transparent" },
-        }}
-        lineNumberStyle={{
-          minWidth: "2.5em",
-          paddingRight: "1em",
-          color: "var(--text-faint)",
-          opacity: 0.5,
-          fontSize: "0.8rem",
-          userSelect: "none",
-        }}
-      >
-        {text}
-      </SyntaxHighlighter>
+      {html ? (
+        <div className="shiki-wrapper" dangerouslySetInnerHTML={{ __html: html }} />
+      ) : (
+        <pre style={{
+          margin: 0, borderRadius: "0.75rem", fontSize: "0.85rem", lineHeight: "1.7",
+          border: "1px solid var(--pre-border)", padding: "1rem",
+          background: "var(--pre-bg)", color: "var(--pre-text)",
+          fontFamily: "'JetBrains Mono', 'Fira Code', monospace", overflowX: "auto", whiteSpace: "pre",
+        }}>
+          <code>{text}</code>
+        </pre>
+      )}
     </div>
   );
 }
@@ -308,9 +330,12 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
     setEditing(false);
   };
 
-  const isDark = useMemo(() => {
-    return document.documentElement.classList.contains("dark");
-  }, [editing]);
+  const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
+  useEffect(() => {
+    const obs = new MutationObserver(() => setIsDark(document.documentElement.classList.contains("dark")));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["class"] });
+    return () => obs.disconnect();
+  }, []);
 
   const handleEdit = () => {
     setEditing(true);
@@ -403,41 +428,61 @@ export function FileViewer({ filePath, refreshKey, onNavigate }: FileViewerProps
           </Suspense>
         ) : (
           <article className="markdown-body max-w-3xl mx-auto">
-            {frontMatter.meta && (
+            {(frontMatter.meta || frontMatter.metadata) && (() => {
+              const md = frontMatter.metadata;
+              const cb = md?.clawdbot || md?.openclaw;
+              const emoji = cb?.emoji || "🧩";
+              const requires = cb?.requires;
+              const extraMeta = frontMatter.meta ? Object.entries(frontMatter.meta).filter(([k]) => k !== "name" && k !== "description") : [];
+              return (
               <div className="mb-6 rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
-                {/* Header bar with gradient */}
-                <div className="px-5 py-4" style={{ background: isDark ? "linear-gradient(135deg, #1e293b, #1a1c2b)" : "linear-gradient(135deg, #f5f0eb, #faf8f5)" }}>
+                {/* Header */}
+                <div className="px-5 py-2.5" style={{ background: isDark ? "linear-gradient(135deg, #1e293b, #1a1c2b)" : "linear-gradient(135deg, #f5f0eb, #faf8f5)" }}>
                   <div className="flex items-center gap-3">
-                    {frontMatter.meta.name && (
+                    {frontMatter.meta?.name && (
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">🧩</span>
+                        <span className="text-lg">{emoji}</span>
                         <h2 className="text-lg font-bold" style={{ color: "var(--link)" }}>{frontMatter.meta.name}</h2>
                       </div>
                     )}
                   </div>
-                  {frontMatter.meta.description && (
+                  {frontMatter.meta?.description && (
                     <p className="text-sm mt-2 leading-relaxed" style={{ color: "var(--text-secondary)" }}>{frontMatter.meta.description}</p>
                   )}
                 </div>
-                {/* Extra fields as tags */}
-                {Object.entries(frontMatter.meta).filter(([k]) => k !== "name" && k !== "description").length > 0 && (
+                {/* Tags: extra fields + requires */}
+                {(extraMeta.length > 0 || requires) && (
                   <div className="px-5 py-2.5 flex flex-wrap gap-2" style={{ background: "var(--bg-tertiary)", borderTop: "1px solid var(--border)" }}>
-                    {Object.entries(frontMatter.meta)
-                      .filter(([k]) => k !== "name" && k !== "description")
-                      .map(([k, v]) => (
-                        <span key={k} className="inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium" style={{ background: "var(--bg-active)", color: "var(--link)" }}>
-                          <span style={{ color: "var(--text-faint)" }}>{k}:</span> {v}
-                        </span>
-                      ))}
+                    {extraMeta.map(([k, v]) => (
+                      <span key={k} className="inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium" style={{ background: "var(--bg-active)", color: "var(--link)" }}>
+                        <span style={{ color: "var(--text-faint)" }}>{k}:</span> {v}
+                      </span>
+                    ))}
+                    {requires?.skills?.map((s: string) => (
+                      <span key={s} className="inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium" style={{ background: isDark ? "rgba(139,92,246,0.15)" : "rgba(139,92,246,0.1)", color: isDark ? "#a78bfa" : "#7c3aed" }}>
+                        🔗 {s}
+                      </span>
+                    ))}
+                    {requires?.tools?.map((t: string) => (
+                      <span key={t} className="inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium" style={{ background: isDark ? "rgba(34,197,94,0.15)" : "rgba(34,197,94,0.1)", color: isDark ? "#4ade80" : "#16a34a" }}>
+                        🔧 {t}
+                      </span>
+                    ))}
+                    {requires?.secrets?.map((s: string) => (
+                      <span key={s} className="inline-flex items-center gap-1 text-xs rounded-full px-2.5 py-1 font-medium" style={{ background: isDark ? "rgba(251,191,36,0.15)" : "rgba(251,191,36,0.1)", color: isDark ? "#fbbf24" : "#d97706" }}>
+                        🔑 {s}
+                      </span>
+                    ))}
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
             <ReactMarkdown
               remarkPlugins={[remarkGfm, remarkFrontmatter]}
               components={{
                 pre({ children }) {
-                  // SyntaxHighlighter handles its own <pre>, so just pass through
+                  // Shiki/CodeBlock handles its own wrapper, so just pass through
                   return <>{children}</>;
                 },
                 code: CodeBlock,

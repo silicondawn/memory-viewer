@@ -377,6 +377,41 @@ body {
   color: var(--link);
 }
 
+/* Shiki code blocks */
+.shiki-wrapper pre {
+  margin: 0;
+  border-radius: 0.75rem;
+  font-size: 0.85rem;
+  line-height: 1.7;
+  border: 1px solid var(--pre-border);
+  padding: 1rem;
+  overflow-x: auto;
+  white-space: pre;
+}
+.shiki-wrapper pre code {
+  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  background: transparent;
+  tab-size: 2;
+  counter-reset: line;
+}
+.shiki-wrapper pre code .line {
+  display: inline-block;
+  width: 100%;
+}
+.shiki-wrapper pre code .line::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 2.5em;
+  margin-right: 1em;
+  text-align: right;
+  color: var(--text-faint);
+  opacity: 0.5;
+  font-size: 0.8rem;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
 /* Scrollbar */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
