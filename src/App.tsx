@@ -10,7 +10,8 @@ import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
 import { useConnections } from "./hooks/useConnections";
-import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, RefreshCw, Settings, Monitor, Puzzle, ChevronRight } from "lucide-react";
+import { AgentStatusPage } from "./components/AgentStatus";
+import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, RefreshCw, Settings, Monitor, Puzzle, ChevronRight, Activity } from "lucide-react";
 import { useZoom } from "./hooks/useZoom";
 import { useResizableSidebar } from "./hooks/useResizableSidebar";
 import { useLocaleState, LocaleContext } from "./hooks/useLocale";
@@ -20,7 +21,7 @@ export default function App() {
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [skillsOpen, setSkillsOpen] = useState(true);
   const [activeFile, setActiveFile] = useState("");
-  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog">("dashboard");
+  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -276,6 +277,19 @@ export default function App() {
           </kbd>
         </button>
 
+        {/* Agent Status */}
+        <button
+          onClick={() => { setView("agent-status"); setSidebarOpen(false); }}
+          className="mx-3 mt-1 flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5"
+          style={{ 
+            color: view === "agent-status" ? "var(--link)" : "var(--text-secondary)",
+            background: view === "agent-status" ? "var(--bg-active)" : undefined 
+          }}
+        >
+          <Activity className="w-4 h-4" />
+          {t("sidebar.agentConfig")}
+        </button>
+
         {/* Skills + File tree */}
         <div className="flex-1 overflow-y-auto px-2 py-3">
           {skills.length > 0 && (
@@ -341,7 +355,7 @@ export default function App() {
             <Menu className="w-6 h-6" />
           </button>
           <span className="text-sm font-medium truncate">
-            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : t("dashboard.title")}
+            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : view === "agent-status" ? t("sidebar.agentConfig") : t("dashboard.title")}
           </span>
           <button onClick={() => window.location.reload()} className="ml-auto p-1" style={{ color: "var(--text-muted)" }} title="Refresh">
             <RefreshCw className="w-5 h-5" />
@@ -360,6 +374,8 @@ export default function App() {
         <div className="flex-1 overflow-hidden">
           {view === "changelog" ? (
             <Changelog onBack={goHome} />
+          ) : view === "agent-status" ? (
+            <AgentStatusPage />
           ) : view === "connections" ? (
             <div className="h-full overflow-auto">
               <Connections

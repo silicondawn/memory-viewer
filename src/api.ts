@@ -144,3 +144,14 @@ export async function checkConnection(baseUrl: string): Promise<boolean> {
     return false;
   }
 }
+
+export interface AgentStatus {
+  config: any;
+  gateway: any;
+  heartbeat: any;
+}
+
+export async function fetchAgentStatus(): Promise<AgentStatus> {
+  const r = await fetch(`${_baseUrl}/api/agent/status`);
+  return r.json();
+}

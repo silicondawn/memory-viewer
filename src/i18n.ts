@@ -12,6 +12,26 @@ const dict: Record<string, Record<Locale, string>> = {
   "sidebar.lightMode": { en: "Switch to light mode", zh: "切换到浅色模式" },
   "sidebar.darkMode": { en: "Switch to dark mode", zh: "切换到深色模式" },
 
+  // Agent Status
+  "agent.title": { en: "Agent Status", zh: "智能体状态" },
+  "agent.gateway": { en: "Gateway", zh: "网关" },
+  "agent.models": { en: "Models", zh: "模型" },
+  "agent.heartbeat": { en: "Heartbeat", zh: "心跳" },
+  "agent.config": { en: "Safe Config", zh: "安全配置" },
+  "agent.running": { en: "Running", zh: "运行中" },
+  "agent.stopped": { en: "Stopped", zh: "已停止" },
+  "agent.uptime": { en: "uptime", zh: "运行时间" },
+  "agent.port": { en: "Port", zh: "端口" },
+  "agent.pid": { en: "PID", zh: "PID" },
+  "agent.mode": { en: "Mode", zh: "模式" },
+  "agent.primary": { en: "Primary Model", zh: "主模型" },
+  "agent.ready": { en: "Ready to inference", zh: "就绪" },
+  "agent.lastActivity": { en: "Last activity", zh: "最近活动" },
+  "agent.noHeartbeat": { en: "No heartbeat data", zh: "无心跳数据" },
+  "agent.channel": { en: "channel", zh: "通道" },
+  "agent.loading": { en: "Loading status...", zh: "加载状态..." },
+  "agent.error": { en: "Failed to load status. Ensure the server is running on the same machine as the agent.", zh: "加载失败。请确保服务器与 Agent 运行在同一台机器上。" },
+
   // Dashboard
   "dashboard.title": { en: "Dashboard", zh: "仪表盘" },
   "dashboard.uptime": { en: "Uptime", zh: "运行时间" },

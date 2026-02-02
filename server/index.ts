@@ -14,8 +14,12 @@ import { serve } from "@hono/node-server";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import { exec as execCallback } from "child_process";
+import util from "util";
 import { watch } from "chokidar";
 import type { ServerWebSocket } from "@hono/node-ws";
+
+const exec = util.promisify(execCallback);
 
 // ---------------------------------------------------------------------------
 // Config
@@ -306,6 +310,59 @@ app.get("/api/system", (c) => {
   return c.json({
     uptime, memTotal, memFree, memUsed: memTotal - memFree,
     load, platform, hostname, todayMemory, totalFiles,
+  });
+});
+
+app.get("/api/agent/status", async (c) => {
+  // 1. Config
+  const home = os.homedir();
+  const configPath = path.join(home, ".openclaw", "openclaw.json");
+  let safeConfig: any = {};
+  try {
+    if (fs.existsSync(configPath)) {
+      const raw = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+      // Whitelist specific fields
+      safeConfig = {
+        version: raw.version,
+        update: raw.update,
+        models: { mode: raw.models?.mode },
+        agents: { defaults: raw.agents?.defaults },
+        gateway: {
+          port: raw.gateway?.port,
+          mode: raw.gateway?.mode,
+        },
+      };
+    }
+  } catch (e) {
+    console.error("Failed to read config", e);
+    safeConfig = { error: "Could not read config" };
+  }
+
+  // 2. Gateway Status
+  let gatewayStatus = null;
+  try {
+    const { stdout } = await exec("openclaw gateway status --json");
+    gatewayStatus = JSON.parse(stdout);
+  } catch (e) {
+    // console.error("Failed to get gateway status", e);
+    // fallback or null
+  }
+
+  // 3. Heartbeat
+  let heartbeat = null;
+  try {
+    const hbPath = path.join(WORKSPACE, "memory", "heartbeat-state.json");
+    if (fs.existsSync(hbPath)) {
+      heartbeat = JSON.parse(fs.readFileSync(hbPath, "utf-8"));
+    }
+  } catch (e) {
+    console.error("Failed to read heartbeat", e);
+  }
+
+  return c.json({
+    config: safeConfig,
+    gateway: gatewayStatus,
+    heartbeat
   });
 });
 
