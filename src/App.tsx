@@ -6,12 +6,13 @@ import { Dashboard } from "./components/Dashboard";
 import { SearchPanel } from "./components/SearchPanel";
 import { Connections } from "./components/Connections";
 import { Changelog } from "./components/Changelog";
+import { SkillsPage } from "./components/SkillsPage";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
 import { useConnections } from "./hooks/useConnections";
 import { AgentStatusPage } from "./components/AgentStatus";
-import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, RefreshCw, Settings, Monitor, Puzzle, ChevronRight, Activity } from "lucide-react";
+import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, ChevronUp, RefreshCw, Settings, Monitor, Puzzle, ChevronRight, CalendarDays, LayoutDashboard } from "lucide-react";
 import { useZoom } from "./hooks/useZoom";
 import { useResizableSidebar } from "./hooks/useResizableSidebar";
 import { useLocaleState, LocaleContext } from "./hooks/useLocale";
@@ -19,9 +20,8 @@ import { useLocaleState, LocaleContext } from "./hooks/useLocale";
 export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
-  const [skillsOpen, setSkillsOpen] = useState(true);
   const [activeFile, setActiveFile] = useState("");
-  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status">("dashboard");
+  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status" | "skills">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -29,7 +29,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [teslaMode, setTeslaMode] = useState(() => localStorage.getItem("memory-viewer-tesla") === "true");
   const { zoom, setZoom, ZOOM_LEVELS } = useZoom();
-  const { width: sidebarWidth, onMouseDown: onResizeMouseDown } = useResizableSidebar();
+  const { width: sidebarWidth, onMouseDown: onResizeMouseDown, onTouchStart: onResizeTouchStart } = useResizableSidebar();
   const { theme, toggle: toggleTheme } = useTheme();
   const sensitive = useSensitiveState();
   const localeState = useLocaleState();
@@ -102,6 +102,7 @@ export default function App() {
       if (hash === "#/agent-status") { setView("agent-status"); return; }
       if (hash === "#/connections") { setView("connections"); return; }
       if (hash === "#/changelog") { setView("changelog"); return; }
+      if (hash === "#/skills") { setView("skills"); return; }
     };
     readHash();
     window.addEventListener("popstate", readHash);
@@ -130,6 +131,7 @@ export default function App() {
   };
 
   const online = connState.statuses[connState.active.id] ?? (connState.active.isLocal ? true : false);
+  const todayFile = `memory/${new Date().toISOString().slice(0, 10)}.md`;
 
   return (
     <LocaleContext.Provider value={localeState}>
@@ -140,48 +142,57 @@ export default function App() {
         <div className="fixed inset-0 z-30 bg-black/40 lg:hidden" onClick={() => setSidebarOpen(false)} />
       )}
 
-      {/* Sidebar */}
+      {/* Sidebar - Redesigned */}
       <aside
-        className={`sidebar fixed z-40 lg:static lg:z-auto inset-y-0 left-0 w-80 border-r flex flex-col shrink-0 transition-transform duration-200 lg:relative ${
+        className={`sidebar fixed z-40 lg:static lg:z-auto inset-y-0 left-0 w-60 border-r flex flex-col shrink-0 transition-transform duration-200 lg:relative ${
           sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
         }`}
         style={{ width: window.innerWidth >= 1024 ? `${sidebarWidth}px` : undefined }}
       >
-        {/* Header */}
-        <div className="sidebar-header px-4 py-3 border-b">
-          <div className="flex items-center justify-between">
-            <button onClick={goHome} className="text-base font-bold hover:text-blue-400 transition-colors whitespace-nowrap" style={{ color: "var(--text-primary)" }}>
-              <BookOpen className="w-4.5 h-4.5 inline-block mr-1 -mt-0.5" /> Memory Viewer
+        {/* Header - Minimal */}
+        <div className="sidebar-header px-3 py-2.5 border-b flex items-center justify-between">
+          <button onClick={goHome} className="text-sm font-semibold hover:text-blue-400 transition-colors flex items-center gap-1.5" style={{ color: "var(--text-primary)" }}>
+            <BookOpen className="w-4 h-4" /> Memory Viewer
+          </button>
+          <div className="flex items-center gap-0.5">
+            {/* Mobile close */}
+            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1.5" style={{ color: "var(--text-muted)" }}>
+              <X className="w-4 h-4" />
             </button>
-            <button onClick={() => setSidebarOpen(false)} className="lg:hidden p-1" style={{ color: "var(--text-muted)" }}>
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-          <div className="flex items-center gap-0.5 mt-2">
-            <button onClick={() => window.location.reload()} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title="Refresh">
-              <RefreshCw className="w-3.5 h-3.5" />
-            </button>
-            <button onClick={sensitive.toggle} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={sensitive.hidden ? t("sidebar.showSensitive") : t("sidebar.hideSensitive")}>
-              {sensitive.hidden ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-            </button>
-            <button onClick={toggleTheme} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={theme === "dark" ? t("sidebar.lightMode") : t("sidebar.darkMode")}>
-              {theme === "dark" ? <Sun className="w-3.5 h-3.5" /> : <Moon className="w-3.5 h-3.5" />}
-            </button>
-            <button onClick={toggleLocale} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title={locale === "en" ? "切换到中文" : "Switch to English"}>
-              <Languages className="w-3.5 h-3.5" />
-            </button>
+            {/* Settings gear - all tools inside */}
             <div className="relative">
-              <button onClick={(e) => { e.stopPropagation(); setSettingsOpen(!settingsOpen); }} className="p-1.5 rounded-lg transition-colors hover:opacity-80" style={{ color: "var(--text-muted)" }} title="Settings">
-                <Settings className="w-3.5 h-3.5" />
+              <button 
+                onClick={(e) => { e.stopPropagation(); setSettingsOpen(!settingsOpen); }} 
+                className="p-1.5 rounded-md transition-colors hover:bg-white/10" 
+                style={{ color: "var(--text-muted)" }} 
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
               </button>
               {settingsOpen && (
                 <div
-                  className="absolute top-full left-0 mt-2 rounded-lg shadow-lg z-50 p-3 w-52"
+                  className="absolute top-full right-0 mt-2 rounded-lg shadow-xl z-50 p-3 w-56"
                   style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Zoom Level</div>
-                  <div className="flex flex-wrap gap-1">
+                  {/* Quick tools */}
+                  <div className="flex items-center gap-1 mb-3 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
+                    <button onClick={() => window.location.reload()} className="p-2 rounded-md transition-colors hover:bg-white/10 flex-1" style={{ color: "var(--text-muted)" }} title="Refresh">
+                      <RefreshCw className="w-4 h-4 mx-auto" />
+                    </button>
+                    <button onClick={sensitive.toggle} className="p-2 rounded-md transition-colors hover:bg-white/10 flex-1" style={{ color: "var(--text-muted)" }} title={sensitive.hidden ? t("sidebar.showSensitive") : t("sidebar.hideSensitive")}>
+                      {sensitive.hidden ? <EyeOff className="w-4 h-4 mx-auto" /> : <Eye className="w-4 h-4 mx-auto" />}
+                    </button>
+                    <button onClick={toggleTheme} className="p-2 rounded-md transition-colors hover:bg-white/10 flex-1" style={{ color: "var(--text-muted)" }} title={theme === "dark" ? t("sidebar.lightMode") : t("sidebar.darkMode")}>
+                      {theme === "dark" ? <Sun className="w-4 h-4 mx-auto" /> : <Moon className="w-4 h-4 mx-auto" />}
+                    </button>
+                    <button onClick={toggleLocale} className="p-2 rounded-md transition-colors hover:bg-white/10 flex-1" style={{ color: "var(--text-muted)" }} title={locale === "en" ? "切换到中文" : "Switch to English"}>
+                      <Languages className="w-4 h-4 mx-auto" />
+                    </button>
+                  </div>
+                  {/* Zoom */}
+                  <div className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Zoom</div>
+                  <div className="flex flex-wrap gap-1 mb-3">
                     {ZOOM_LEVELS.map((level) => (
                       <button
                         key={level}
@@ -198,44 +209,113 @@ export default function App() {
                       </button>
                     ))}
                   </div>
-                  <div className="border-t mt-3 pt-3" style={{ borderColor: "var(--border)" }}>
-                    <button
-                      onClick={() => { const v = !teslaMode; setTeslaMode(v); localStorage.setItem("memory-viewer-tesla", String(v)); }}
-                      className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors"
-                      style={{ background: teslaMode ? "var(--bg-active)" : "var(--bg-hover)", color: teslaMode ? "var(--link)" : "var(--text-secondary)" }}
-                    >
-                      <Monitor className="w-3.5 h-3.5" />
-                      Tesla Mode
-                      {teslaMode && <span className="ml-auto text-[10px]">✓</span>}
-                    </button>
-                  </div>
+                  {/* Tesla mode */}
+                  <button
+                    onClick={() => { const v = !teslaMode; setTeslaMode(v); localStorage.setItem("memory-viewer-tesla", String(v)); }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors"
+                    style={{ background: teslaMode ? "var(--bg-active)" : "var(--bg-hover)", color: teslaMode ? "var(--link)" : "var(--text-secondary)" }}
+                  >
+                    <Monitor className="w-3.5 h-3.5" />
+                    Tesla Mode
+                    {teslaMode && <span className="ml-auto text-[10px]">✓</span>}
+                  </button>
+                  {/* Changelog */}
+                  <button
+                    onClick={() => { setSettingsOpen(false); setView("changelog"); setSidebarOpen(false); window.history.pushState(null, "", "#/changelog"); }}
+                    className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors mt-1"
+                    style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+                  >
+                    <BookOpen className="w-3.5 h-3.5" />
+                    Changelog
+                    <span className="ml-auto opacity-50">v1.2.0</span>
+                  </button>
                 </div>
               )}
             </div>
           </div>
         </div>
 
-        {/* Bot Selector */}
-        <div className="px-3 pt-3 relative">
+        {/* Search - Compact */}
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="search-trigger mx-2 mt-2 flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors"
+        >
+          <Search className="w-3.5 h-3.5" />
+          <span className="flex-1 text-left">{t("sidebar.search")}</span>
+          <kbd className="text-[10px] px-1 py-0.5 rounded border opacity-60" style={{ background: "var(--bg-hover)", borderColor: "var(--border)" }}>
+            ⌘K
+          </kbd>
+        </button>
+
+        {/* Quick Access */}
+        <div className="mx-2 mt-3">
+          <div className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-1" style={{ color: "var(--text-muted)" }}>
+            {t("sidebar.quickAccess") || "Quick Access"}
+          </div>
+          <div className="flex flex-col gap-0.5">
+            <button
+              onClick={() => openFile(todayFile)}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+              style={{
+                color: activeFile === todayFile ? "var(--link)" : "var(--text-secondary)",
+                background: activeFile === todayFile ? "var(--bg-active)" : undefined,
+              }}
+            >
+              <CalendarDays className="w-4 h-4 text-green-400" />
+              {t("sidebar.today") || "Today"}
+            </button>
+            <button
+              onClick={goHome}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+              style={{
+                color: view === "dashboard" && !activeFile ? "var(--link)" : "var(--text-secondary)",
+                background: view === "dashboard" && !activeFile ? "var(--bg-active)" : undefined,
+              }}
+            >
+              <LayoutDashboard className="w-4 h-4 text-blue-400" />
+              {t("dashboard.title")}
+            </button>
+            {skills.length > 0 && (
+              <button
+                onClick={() => { setView("skills"); setSidebarOpen(false); window.history.pushState(null, "", "#/skills"); }}
+                className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+                style={{
+                  color: view === "skills" ? "var(--link)" : "var(--text-secondary)",
+                  background: view === "skills" ? "var(--bg-active)" : undefined,
+                }}
+              >
+                <Puzzle className="w-4 h-4 text-purple-400" />
+                {t("sidebar.skills")}
+                <span className="ml-auto text-[10px] opacity-50">{skills.length}</span>
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* File Browser - Main content area */}
+        <div className="flex-1 overflow-y-auto px-2 py-3">
+          <FileTree nodes={files} activeFile={activeFile} onSelect={openFile} />
+        </div>
+
+        {/* Bot Selector - Bottom */}
+        <div className="border-t px-2 py-2 relative" style={{ borderColor: "var(--border)" }}>
           <button
             onClick={(e) => { e.stopPropagation(); setBotSelectorOpen(!botSelectorOpen); }}
-            className="w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
-            style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}
+            className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+            style={{ color: "var(--text-secondary)" }}
           >
             <span
               className="w-2 h-2 rounded-full shrink-0"
               style={{ background: online ? "#22c55e" : "#ef4444" }}
             />
-            <span className="truncate flex-1 text-left font-medium" style={{ color: "var(--text-primary)" }}>
-              {connState.active.name}
-            </span>
-            <ChevronDown className="w-3.5 h-3.5 shrink-0" style={{ color: "var(--text-muted)" }} />
+            <span className="truncate flex-1 text-left text-xs">{connState.active.name}</span>
+            {botSelectorOpen ? <ChevronDown className="w-3 h-3 shrink-0" /> : <ChevronUp className="w-3 h-3 shrink-0" />}
           </button>
 
-          {/* Dropdown */}
+          {/* Dropdown - opens upward */}
           {botSelectorOpen && (
             <div
-              className="absolute left-3 right-3 top-full mt-1 rounded-lg shadow-lg z-50 py-1 max-h-60 overflow-y-auto"
+              className="absolute left-2 right-2 bottom-full mb-1 rounded-lg shadow-xl z-50 py-1 max-h-60 overflow-y-auto"
               style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
               onClick={(e) => e.stopPropagation()}
             >
@@ -245,7 +325,7 @@ export default function App() {
                   <button
                     key={conn.id}
                     onClick={() => switchBot(conn.id)}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-white/5"
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-white/5"
                     style={{ color: conn.id === connState.active.id ? "#3b82f6" : "var(--text-secondary)" }}
                   >
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ background: s ? "#22c55e" : "#ef4444" }} />
@@ -256,8 +336,8 @@ export default function App() {
               })}
               <div className="border-t my-1" style={{ borderColor: "var(--border)" }} />
               <button
-                onClick={() => { setBotSelectorOpen(false); setView("connections"); window.history.pushState(null, "", "#/connections"); }}
-                className="w-full flex items-center gap-2 px-3 py-2 text-sm transition-colors hover:bg-white/5"
+                onClick={() => { setBotSelectorOpen(false); setView("connections"); setSidebarOpen(false); window.history.pushState(null, "", "#/connections"); }}
+                className="w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-white/5"
                 style={{ color: "var(--text-muted)" }}
               >
                 <Network className="w-3.5 h-3.5" />
@@ -267,109 +347,12 @@ export default function App() {
           )}
         </div>
 
-        {/* Search trigger */}
-        <button
-          onClick={() => setSearchOpen(true)}
-          className="search-trigger mx-3 mt-3 flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors"
-        >
-          <Search className="w-4 h-4" />
-          {t("sidebar.search")}
-          <kbd className="ml-auto text-[10px] px-1.5 py-0.5 rounded border hidden sm:inline" style={{ background: "var(--bg-hover)", borderColor: "var(--border)" }}>
-            ⌘K
-          </kbd>
-        </button>
-
-        {/* Navigation */}
-        <nav className="mx-3 mt-2 flex flex-col gap-0.5">
-          <button
-            onClick={() => { goHome(); }}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5"
-            style={{
-              color: view === "dashboard" ? "var(--link)" : "var(--text-secondary)",
-              background: view === "dashboard" ? "var(--bg-active)" : undefined,
-            }}
-          >
-            <BookOpen className="w-4 h-4" />
-            {t("dashboard.title")}
-          </button>
-          <button
-            onClick={() => { setView("agent-status"); setSidebarOpen(false); window.history.pushState(null, "", "#/agent-status"); }}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5"
-            style={{
-              color: view === "agent-status" ? "var(--link)" : "var(--text-secondary)",
-              background: view === "agent-status" ? "var(--bg-active)" : undefined,
-            }}
-          >
-            <Activity className="w-4 h-4" />
-            {t("sidebar.agentConfig")}
-          </button>
-          <button
-            onClick={() => { setView("connections"); setSidebarOpen(false); window.history.pushState(null, "", "#/connections"); }}
-            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors hover:bg-white/5"
-            style={{
-              color: view === "connections" ? "var(--link)" : "var(--text-secondary)",
-              background: view === "connections" ? "var(--bg-active)" : undefined,
-            }}
-          >
-            <Network className="w-4 h-4" />
-            {t("connections.title")}
-          </button>
-        </nav>
-
-        {/* Skills + File tree */}
-        <div className="flex-1 overflow-y-auto px-2 py-3">
-          {skills.length > 0 && (
-            <div className="mb-2">
-              <button
-                onClick={() => setSkillsOpen(!skillsOpen)}
-                className="flex items-center gap-1.5 px-2 py-1 text-xs font-semibold uppercase tracking-wide w-full hover:opacity-80 transition-opacity"
-                style={{ color: "var(--text-muted)" }}
-              >
-                <ChevronRight className={`w-3 h-3 transition-transform ${skillsOpen ? "rotate-90" : ""}`} />
-                <Puzzle className="w-3.5 h-3.5" />
-                {t("sidebar.skills")}
-                <span className="ml-auto text-[10px] font-normal">{skills.length}</span>
-              </button>
-              {skillsOpen && (
-                <div className="mt-1">
-                  {skills.map((skill) => (
-                    <button
-                      key={skill.id}
-                      onClick={() => openFile(skill.path)}
-                      className="w-full text-left px-3 py-1.5 text-sm rounded-md transition-colors truncate hover:bg-white/5"
-                      style={{
-                        color: activeFile === skill.path ? "var(--link)" : "var(--text-secondary)",
-                        background: activeFile === skill.path ? "var(--bg-active)" : undefined,
-                      }}
-                      title={skill.description || skill.name}
-                    >
-                      {skill.name}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          <FileTree nodes={files} activeFile={activeFile} onSelect={openFile} />
-        </div>
-
-        {/* Footer */}
-        <div className="sidebar-footer px-4 py-2.5 border-t text-xs flex items-center justify-between">
-          <span>{t("sidebar.footer")}</span>
-          <button
-            onClick={() => { setView("changelog"); setSidebarOpen(false); window.history.pushState(null, "", "#/changelog"); }}
-            className="hover:text-blue-400 transition-colors"
-            style={{ color: "var(--text-muted)" }}
-          >
-            v1.1.0
-          </button>
-        </div>
-
-        {/* Resize handle */}
+        {/* Resize handle - wider touch target on tablet */}
         <div
-          className="hidden lg:block absolute top-0 right-0 w-1 h-full cursor-col-resize hover:bg-blue-500/30 transition-colors"
+          className="hidden lg:block absolute top-0 right-0 w-2 h-full cursor-col-resize hover:bg-blue-500/30 active:bg-blue-500/50 transition-colors touch-none"
           style={{ zIndex: 50 }}
           onMouseDown={onResizeMouseDown}
+          onTouchStart={onResizeTouchStart}
         />
       </aside>
 
@@ -402,6 +385,8 @@ export default function App() {
             <Changelog onBack={goHome} />
           ) : view === "agent-status" ? (
             <AgentStatusPage />
+          ) : view === "skills" ? (
+            <SkillsPage skills={skills} onOpenFile={openFile} />
           ) : view === "connections" ? (
             <div className="h-full overflow-auto">
               <Connections

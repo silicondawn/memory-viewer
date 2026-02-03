@@ -3,6 +3,15 @@ export type Locale = "en" | "zh";
 const dict: Record<string, Record<Locale, string>> = {
   // Sidebar
   "sidebar.agentConfig": { en: "Agent Config", zh: "智能体配置" },
+  "sidebar.coreFiles": { en: "Core Files", zh: "核心文件" },
+  "sidebar.dailyNotes": { en: "Daily Notes", zh: "每日日记" },
+  "sidebar.today": { en: "Today", zh: "今日日记" },
+  "sidebar.quickAccess": { en: "Quick Access", zh: "快速访问" },
+  
+  // Skills Page
+  "skills.title": { en: "Skills", zh: "技能" },
+  "skills.description": { en: "Agent capabilities and extensions", zh: "智能体能力与扩展" },
+  "skills.empty": { en: "No skills found", zh: "未找到技能" },
   "sidebar.skills": { en: "Skills", zh: "技能" },
   "sidebar.files": { en: "Files", zh: "文件" },
   "sidebar.search": { en: "Search…", zh: "搜索…" },
