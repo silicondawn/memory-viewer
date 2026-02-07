@@ -496,6 +496,89 @@ app.post("/api/gateway/chat", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// AI Summarize
+// ---------------------------------------------------------------------------
+const GATEWAY_CHAT_URL = process.env.GATEWAY_CHAT_URL || "http://silicon-01:3001/v1/chat/completions";
+const SUMMARIZE_MODEL = process.env.SUMMARIZE_MODEL || "kimi-k2.5";
+
+app.post("/api/summarize", async (c) => {
+  const { path: filePath, content: providedContent, save } = await c.req.json();
+  const full = safePath(filePath);
+  if (!full) return c.json({ error: "Invalid path" }, 400);
+
+  let content = providedContent;
+  if (!content) {
+    if (!fs.existsSync(full)) return c.json({ error: "Not found" }, 404);
+    content = fs.readFileSync(full, "utf-8");
+  }
+
+  // Strip existing frontmatter for summarization
+  const bodyMatch = content.match(/^---\r?\n[\s\S]*?\r?\n---\r?\n?([\s\S]*)$/);
+  const body = bodyMatch ? bodyMatch[1] : content;
+
+  if (body.trim().length < 50) {
+    return c.json({ error: "Content too short to summarize" }, 400);
+  }
+
+  try {
+    const resp = await fetch(GATEWAY_CHAT_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: SUMMARIZE_MODEL,
+        messages: [
+          {
+            role: "system",
+            content: "You are a concise summarizer. Given a markdown document, produce a brief summary (1-3 sentences, max 200 chars). Reply with ONLY the summary text, no quotes, no prefix.",
+          },
+          { role: "user", content: body.slice(0, 8000) },
+        ],
+        max_tokens: 256,
+        temperature: 0.3,
+      }),
+      signal: AbortSignal.timeout(30000),
+    });
+
+    if (!resp.ok) {
+      const text = await resp.text();
+      return c.json({ error: `Gateway error: ${text}` }, 502);
+    }
+
+    const data: any = await resp.json();
+    const summary = (data.choices?.[0]?.message?.content || "").trim();
+    if (!summary) return c.json({ error: "Empty summary returned" }, 502);
+
+    // Optionally save to file frontmatter
+    if (save) {
+      const existingFm = content.match(/^---\r?\n([\s\S]*?)\r?\n---/);
+      let newContent: string;
+      if (existingFm) {
+        // Update or add summary field in existing frontmatter
+        const fmContent = existingFm[1];
+        if (/^summary:/m.test(fmContent)) {
+          const updatedFm = fmContent.replace(/^summary:.*$/m, `summary: "${summary.replace(/"/g, '\\"')}"`);
+          newContent = content.replace(existingFm[0], `---\n${updatedFm}\n---`);
+        } else {
+          newContent = content.replace(existingFm[0], `---\n${fmContent}\nsummary: "${summary.replace(/"/g, '\\"')}"\n---`);
+        }
+      } else {
+        newContent = `---\nsummary: "${summary.replace(/"/g, '\\"')}"\n---\n${content}`;
+      }
+      fs.writeFileSync(full, newContent, "utf-8");
+      const stat = fs.statSync(full);
+      return c.json({ summary, saved: true, mtime: stat.mtime });
+    }
+
+    return c.json({ summary, saved: false });
+  } catch (err: any) {
+    if (err.name === "AbortError" || err.name === "TimeoutError") {
+      return c.json({ error: "Gateway timeout (30s)" }, 504);
+    }
+    return c.json({ error: err.message || "Summarize failed" }, 502);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // WebSocket — live file change notifications
 // ---------------------------------------------------------------------------
 const wsClients = new Set<ServerWebSocket>();
@@ -525,6 +608,34 @@ const watcher = watch(path.join(WORKSPACE, "**/*.md"), {
 watcher.on("all", (event, filePath) => {
   const rel = path.relative(WORKSPACE, filePath);
   broadcast({ type: "file-change", event, path: rel });
+});
+
+// ---------------------------------------------------------------------------
+// Workspace assets (images, SVGs, etc.)
+// ---------------------------------------------------------------------------
+app.get("/workspace-assets/*", async (c) => {
+  const assetPath = c.req.path.replace("/workspace-assets/", "");
+  const fullPath = path.join(WORKSPACE, "assets", assetPath);
+  if (!fullPath.startsWith(path.join(WORKSPACE, "assets"))) {
+    return c.json({ error: "Invalid path" }, 403);
+  }
+  if (!fs.existsSync(fullPath)) {
+    return c.json({ error: "Not found" }, 404);
+  }
+  const ext = path.extname(fullPath).toLowerCase();
+  const mimeTypes: Record<string, string> = {
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".jpg": "image/jpeg",
+    ".jpeg": "image/jpeg",
+    ".gif": "image/gif",
+    ".webp": "image/webp",
+  };
+  const contentType = mimeTypes[ext] || "application/octet-stream";
+  const content = fs.readFileSync(fullPath);
+  c.header("Content-Type", contentType);
+  c.header("Cache-Control", "public, max-age=3600");
+  return c.body(content);
 });
 
 // ---------------------------------------------------------------------------

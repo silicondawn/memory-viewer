@@ -387,9 +387,10 @@ body {
   padding: 1rem;
   overflow-x: auto;
   white-space: pre;
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
 }
 .shiki-wrapper pre code {
-  font-family: 'JetBrains Mono', 'Fira Code', monospace;
+  font-family: inherit;
   background: transparent;
   tab-size: 2;
   counter-reset: line;

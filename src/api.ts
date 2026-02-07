@@ -172,6 +172,24 @@ export async function resolveWikilink(link: string): Promise<WikilinkResolution>
   return r.json();
 }
 
+export interface SummarizeResult {
+  summary: string;
+  saved: boolean;
+  mtime?: string;
+  error?: string;
+}
+
+export async function summarizeFile(path: string, save = false): Promise<SummarizeResult> {
+  const r = await fetch(`${_baseUrl}/api/summarize`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ path, save }),
+  });
+  const data = await r.json();
+  if (!r.ok) throw new Error(data.error || "Summarize failed");
+  return data;
+}
+
 export async function fetchAgentStatus(): Promise<AgentStatus> {
   const r = await fetch(`${_baseUrl}/api/agent/status`);
   return r.json();

@@ -2,33 +2,72 @@ import { useEffect, useState, useCallback, useRef, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
-import { fetchFile, saveFile, fetchBacklinks, resolveWikilink, ConflictResult, BacklinkEntry } from "../api";
-import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw, Link2 } from "lucide-react";
+import { fetchFile, saveFile, fetchBacklinks, resolveWikilink, summarizeFile, ConflictResult, BacklinkEntry } from "../api";
+import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw, Link2, PenTool, Box, Sparkles, Loader2 } from "lucide-react";
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
 import { lazy, Suspense } from "react";
 import { renderMermaid, THEMES } from "beautiful-mermaid";
+import mermaid from "mermaid";
 const MarkdownEditor = lazy(() => import("./MarkdownEditor").then(m => ({ default: m.MarkdownEditor })));
 
-/** Mermaid diagram renderer */
+// Initialize mermaid for different styles
+function initMermaid(isDark: boolean, handDrawn: boolean) {
+  mermaid.initialize({
+    startOnLoad: false,
+    securityLevel: "loose",
+    theme: isDark ? "dark" : "default",
+    look: handDrawn ? "handDrawn" : "classic",
+    fontFamily: handDrawn 
+      ? "Virgil, Segoe Print, Bradley Hand, Chilanka, TSCu_Comic, casual, cursive"
+      : "Inter, sans-serif",
+  });
+}
+
+type MermaidStyle = "normal" | "handDrawn";
+
+/** Mermaid diagram renderer with style toggle */
 function MermaidBlock({ code }: { code: string }) {
   const [svg, setSvg] = useState<string>("");
   const [error, setError] = useState<string>("");
+  const [style, setStyle] = useState<MermaidStyle>("normal");
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const isDark = document.documentElement.classList.contains("dark");
-    const theme = isDark ? THEMES["tokyo-night"] : THEMES["github-light"];
-    renderMermaid(code, theme)
-      .then((result) => {
-        setSvg(typeof result === "string" ? result : (result as any).svg || String(result));
-        setError("");
-      })
-      .catch((e) => {
-        setError(e.message || "Failed to render diagram");
-        setSvg("");
-      });
-  }, [code]);
+    // Generate unique ID for each render to avoid conflicts
+    const renderId = `mermaid-${Math.random().toString(36).slice(2)}`;
+    
+    if (style === "handDrawn") {
+      // Use native mermaid with hand-drawn look
+      initMermaid(isDark, true);
+      console.log("[Mermaid] Rendering hand-drawn style with ID:", renderId);
+      mermaid.render(renderId, code)
+        .then((result) => {
+          console.log("[Mermaid] Render success, svg length:", result.svg?.length);
+          setSvg(result.svg);
+          setError("");
+        })
+        .catch((e) => {
+          console.error("[Mermaid] Render failed:", e);
+          setError(e.message || "Failed to render diagram");
+          setSvg("");
+        });
+    } else {
+      // Use beautiful-mermaid for normal style
+      const baseTheme = isDark ? THEMES["github-dark"] : THEMES["github-light"];
+      const theme = { ...baseTheme, bg: "transparent" };
+      renderMermaid(code, theme)
+        .then((result) => {
+          setSvg(typeof result === "string" ? result : (result as any).svg || String(result));
+          setError("");
+        })
+        .catch((e) => {
+          setError(e.message || "Failed to render diagram");
+          setSvg("");
+        });
+    }
+  }, [code, style]);
 
   if (error) {
     return (
@@ -44,11 +83,38 @@ function MermaidBlock({ code }: { code: string }) {
   }
 
   return (
-    <div
-      ref={containerRef}
-      className="my-4 overflow-x-auto flex justify-center"
-      dangerouslySetInnerHTML={{ __html: svg }}
-    />
+    <div className="relative my-4">
+      {/* Style toggle button */}
+      <div className="absolute top-2 right-2 z-10 flex gap-1">
+        <button
+          onClick={() => setStyle("normal")}
+          className={`p-1.5 rounded-md transition-colors ${
+            style === "normal" 
+              ? "bg-blue-500/20 text-blue-400" 
+              : "bg-gray-500/10 text-gray-400 hover:bg-gray-500/20"
+          }`}
+          title="Normal style"
+        >
+          <Box size={14} />
+        </button>
+        <button
+          onClick={() => setStyle("handDrawn")}
+          className={`p-1.5 rounded-md transition-colors ${
+            style === "handDrawn" 
+              ? "bg-blue-500/20 text-blue-400" 
+              : "bg-gray-500/10 text-gray-400 hover:bg-gray-500/20"
+          }`}
+          title="Hand-drawn style"
+        >
+          <PenTool size={14} />
+        </button>
+      </div>
+      <div
+        ref={containerRef}
+        className="overflow-x-auto flex justify-center"
+        dangerouslySetInnerHTML={{ __html: svg }}
+      />
+    </div>
   );
 }
 
@@ -176,7 +242,7 @@ function CodeBlock({ className, children, ...props }: any) {
           padding: "1rem",
           background: "var(--pre-bg)",
           color: "var(--pre-text)",
-          fontFamily: "Menlo, Consolas, 'DejaVu Sans Mono', 'Liberation Mono', monospace",
+          fontFamily: "'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
           overflowX: "auto",
           whiteSpace: "pre",
         }}>
@@ -368,6 +434,8 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
   const [conflict, setConflict] = useState<ConflictResult | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const [summarizing, setSummarizing] = useState(false);
+  const [summary, setSummary] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -457,6 +525,29 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
     setEditing(false);
   };
 
+  const handleSummarize = useCallback(async (save: boolean) => {
+    setSummarizing(true);
+    setSummary(null);
+    try {
+      const result = await summarizeFile(filePath, save);
+      setSummary(result.summary);
+      if (save && result.mtime) {
+        // Reload the file to get updated frontmatter
+        const data = await fetchFile(filePath);
+        setContent(data.content);
+        setEditContent(data.content);
+        setMtime(data.mtime);
+        showToast("✨ Summary saved to frontmatter");
+      } else {
+        showToast("✨ Summary generated");
+      }
+    } catch (err: any) {
+      showToast(`❌ ${err.message}`);
+    } finally {
+      setSummarizing(false);
+    }
+  }, [filePath]);
+
   const [isDark, setIsDark] = useState(() => document.documentElement.classList.contains("dark"));
   useEffect(() => {
     const obs = new MutationObserver(() => setIsDark(document.documentElement.classList.contains("dark")));
@@ -533,6 +624,15 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
               <button onClick={handleRefresh} className="btn-secondary text-sm flex items-center gap-1" disabled={refreshing} title="Refresh file">
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
               </button>
+              <button
+                onClick={() => handleSummarize(false)}
+                disabled={summarizing}
+                className="btn-secondary text-sm flex items-center gap-1"
+                title="AI Summarize"
+              >
+                {summarizing ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                {summarizing ? "..." : "AI"}
+              </button>
               <button onClick={handleEdit} className="btn-secondary text-sm flex items-center gap-1">
                 <Pencil className="w-3.5 h-3.5" /> {t("file.edit")}
               </button>
@@ -555,6 +655,28 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
           </Suspense>
         ) : (
           <article className="markdown-body max-w-3xl mx-auto">
+            {summary && (
+              <div className="mb-4 rounded-xl p-4 flex flex-col gap-2" style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold flex items-center gap-1.5" style={{ color: "var(--link)" }}>
+                    <Sparkles className="w-4 h-4" /> AI Summary
+                  </span>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSummarize(true)}
+                      disabled={summarizing}
+                      className="btn-primary text-xs flex items-center gap-1"
+                    >
+                      <Save className="w-3 h-3" /> Save to file
+                    </button>
+                    <button onClick={() => setSummary(null)} className="btn-secondary text-xs">
+                      <X className="w-3 h-3" />
+                    </button>
+                  </div>
+                </div>
+                <p className="text-sm" style={{ color: "var(--text-secondary)" }}>{summary}</p>
+              </div>
+            )}
             {(frontMatter.meta || frontMatter.metadata) && (() => {
               const md = frontMatter.metadata;
               const cb = md?.clawdbot || md?.openclaw;
