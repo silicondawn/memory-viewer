@@ -85,11 +85,6 @@ const dict: Record<string, Record<Locale, string>> = {
   "file.backToTop": { en: "Back to top", zh: "返回顶部" },
   "file.copy": { en: "Copy", zh: "复制" },
 
-  // Backlinks
-  "backlinks.title": { en: "Backlinks", zh: "反向链接" },
-  "backlinks.none": { en: "No backlinks", zh: "暂无反向链接" },
-  "backlinks.line": { en: "Line", zh: "行" },
-
   // Search
   "search.placeholder": { en: "Search all memory files…", zh: "搜索所有记忆文件…" },
   "search.noResults": { en: "No results found for", zh: "未找到相关结果：" },

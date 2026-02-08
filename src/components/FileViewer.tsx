@@ -3,8 +3,8 @@ import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
 import rehypeRaw from "rehype-raw";
-import { fetchFile, saveFile, fetchBacklinks, resolveWikilink, ConflictResult, BacklinkEntry } from "../api";
-import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw, Link2, PenTool, Box } from "lucide-react";
+import { fetchFile, saveFile, resolveWikilink, ConflictResult } from "../api";
+import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw, PenTool, Box } from "lucide-react";
 import { PluginSlot } from "../plugins/PluginSlot";
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
@@ -372,54 +372,6 @@ function processWikiLinks(text: string, onOpenFile?: (path: string) => void): Re
   return parts;
 }
 
-/** Backlinks panel */
-function BacklinksPanel({ filePath, onOpenFile }: { filePath: string; onOpenFile?: (path: string) => void }) {
-  const { t } = useLocale();
-  const [backlinks, setBacklinks] = useState<BacklinkEntry[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    setLoading(true);
-    fetchBacklinks(filePath)
-      .then(setBacklinks)
-      .catch(() => setBacklinks([]))
-      .finally(() => setLoading(false));
-  }, [filePath]);
-
-  return (
-    <div className="border-t mt-6 pt-4" data-backlinks="true" style={{ borderColor: "var(--border)" }}>
-      <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-3" style={{ color: "var(--text-muted)" }}>
-        <Link2 className="w-4 h-4" />
-        {t("backlinks.title")}
-        {!loading && backlinks.length > 0 && (
-          <span className="text-xs font-normal ml-1" style={{ color: "var(--text-faint)" }}>({backlinks.length})</span>
-        )}
-      </h3>
-      {loading ? (
-        <div className="text-xs" style={{ color: "var(--text-faint)" }}>Loading...</div>
-      ) : backlinks.length === 0 ? (
-        <div className="text-xs" style={{ color: "var(--text-faint)" }}>{t("backlinks.none")}</div>
-      ) : (
-        <div className="space-y-2">
-          {backlinks.map((bl, i) => (
-            <button
-              key={`${bl.path}-${bl.line}-${i}`}
-              onClick={() => onOpenFile?.(bl.path)}
-              className="w-full text-left rounded-lg p-2.5 text-sm transition-colors hover:bg-white/5"
-              style={{ background: "var(--bg-hover)", border: "1px solid var(--border)" }}
-            >
-              <div className="font-medium text-xs" style={{ color: "var(--link)" }}>{bl.path}</div>
-              <div className="text-xs mt-1 truncate" style={{ color: "var(--text-secondary)" }}>
-                <span style={{ color: "var(--text-faint)" }}>{t("backlinks.line")} {bl.line}:</span> {bl.context}
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 interface FileViewerProps {
   filePath: string;
   refreshKey?: number;
@@ -709,7 +661,6 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
                 },
               }}
             >{content}</ReactMarkdown>
-            <BacklinksPanel filePath={filePath} onOpenFile={onOpenFile} />
           </article>
         )}
       </div>
