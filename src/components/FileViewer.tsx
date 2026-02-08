@@ -5,6 +5,7 @@ import remarkFrontmatter from "remark-frontmatter";
 import rehypeRaw from "rehype-raw";
 import { fetchFile, saveFile, fetchBacklinks, resolveWikilink, ConflictResult, BacklinkEntry } from "../api";
 import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw, Link2, PenTool, Box } from "lucide-react";
+import { PluginSlot } from "../plugins/PluginSlot";
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
 import { lazy, Suspense } from "react";
@@ -600,6 +601,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
               <button onClick={handleRefresh} className="btn-secondary text-sm flex items-center gap-1" disabled={refreshing} title="Refresh file">
                 <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
               </button>
+              <PluginSlot name="fileviewer-toolbar" filePath={filePath} content={content} renderedRef={contentRef} />
               <button onClick={handleEdit} className="btn-secondary text-sm flex items-center gap-1">
                 <Pencil className="w-3.5 h-3.5" /> {t("file.edit")}
               </button>

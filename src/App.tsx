@@ -12,7 +12,9 @@ import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
 import { useConnections } from "./hooks/useConnections";
 import { AgentStatusPage } from "./components/AgentStatus";
-import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, ChevronUp, RefreshCw, Settings, Monitor, Puzzle, ChevronRight, CalendarDays, LayoutDashboard } from "lucide-react";
+import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, ChevronUp, RefreshCw, Settings, Monitor, Puzzle, ChevronRight, CalendarDays, LayoutDashboard, Power } from "lucide-react";
+import { useSyncExternalStore } from "react";
+import { pluginRegistry } from "./plugins/registry";
 import { useZoom } from "./hooks/useZoom";
 import { useResizableSidebar } from "./hooks/useResizableSidebar";
 import { useLocaleState, LocaleContext } from "./hooks/useLocale";
@@ -35,6 +37,8 @@ export default function App() {
   const localeState = useLocaleState();
   const { t, toggleLocale, locale } = localeState;
   const connState = useConnections();
+  const pluginVersion = useSyncExternalStore(pluginRegistry.subscribe, pluginRegistry.getSnapshot);
+  const allPlugins = pluginRegistry.getAll();
 
   // Sync baseUrl when active connection changes
   useEffect(() => {
@@ -219,6 +223,30 @@ export default function App() {
                     Tesla Mode
                     {teslaMode && <span className="ml-auto text-[10px]">✓</span>}
                   </button>
+                  {/* Plugins */}
+                  {allPlugins.length > 0 && (
+                    <div className="mt-3 pt-3 border-t" style={{ borderColor: "var(--border)" }}>
+                      <div className="text-[10px] font-semibold uppercase tracking-wider mb-2 px-2" style={{ color: "var(--text-muted)" }}>
+                        Plugins
+                      </div>
+                      {allPlugins.map((p) => {
+                        const enabled = pluginRegistry.isEnabled(p.id);
+                        return (
+                          <button
+                            key={`${p.id}-${pluginVersion}`}
+                            onClick={() => enabled ? pluginRegistry.disable(p.id) : pluginRegistry.enable(p.id)}
+                            className="w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors"
+                            style={{ background: enabled ? "var(--bg-active)" : "var(--bg-hover)", color: enabled ? "var(--link)" : "var(--text-secondary)" }}
+                          >
+                            <Power className="w-3.5 h-3.5" />
+                            <span className="flex-1 text-left">{p.name}</span>
+                            <span className="opacity-50 text-[10px]">{p.version}</span>
+                            {enabled && <span className="text-[10px]">✓</span>}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
                   {/* Changelog */}
                   <button
                     onClick={() => { setSettingsOpen(false); setView("changelog"); setSidebarOpen(false); window.history.pushState(null, "", "#/changelog"); }}
