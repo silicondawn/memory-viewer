@@ -10,7 +10,7 @@ class ThemeRegistry {
   private snapshot = { version: 0 };
 
   constructor() {
-    this.currentId = localStorage.getItem(STORAGE_KEY) || "default";
+    this.currentId = localStorage.getItem(STORAGE_KEY) || "medium";
   }
 
   register(theme: MarkdownTheme) {

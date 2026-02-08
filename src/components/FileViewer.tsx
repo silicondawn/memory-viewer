@@ -553,12 +553,12 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
   useEffect(() => {
     if (!contentRef.current || editing) return;
     const article = contentRef.current.querySelector(".markdown-body");
-    if (!article || !mdTheme.styles) {
+    if (!article || (!mdTheme.styles && !mdTheme.darkStyles)) {
       cleanInlineStyles(article);
       return;
     }
     applyThemeStyles(article as HTMLElement, mdTheme);
-  }, [content, mdTheme, editing, refreshKey]);
+  }, [content, mdTheme, editing, refreshKey, isDark]);
 
   const fileStats = useMemo(() => {
     const bytes = new Blob([content]).size;

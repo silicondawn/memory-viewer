@@ -1,4 +1,4 @@
-import type { MarkdownTheme } from "./types";
+import type { MarkdownTheme, ThemeStyles } from "./types";
 
 const SELECTOR_MAP: Record<string, string> = {
   h1: "h1",
@@ -28,19 +28,13 @@ function applyInlineStyle(el: HTMLElement, styleStr: string) {
 }
 
 export function applyThemeStyles(article: HTMLElement, theme: MarkdownTheme) {
-  const styles = theme.styles;
+  const isDark = document.documentElement.classList.contains("dark");
+  const styles: ThemeStyles | undefined = (isDark && theme.darkStyles) ? theme.darkStyles : theme.styles;
   if (!styles) return;
-
-  // Non-default themes are light-colored — always apply white background wrapper
-  // so they look correct in both light and dark mode
-  article.style.background = "#fff";
-  article.style.borderRadius = "12px";
-  article.style.padding = "2rem";
 
   // Apply body style to article
   if (styles.body) {
-    const existing = article.getAttribute("style") || "";
-    article.setAttribute("style", existing + styles.body);
+    article.setAttribute("style", styles.body);
   }
 
   // Apply styles per selector
