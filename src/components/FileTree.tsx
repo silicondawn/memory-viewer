@@ -127,6 +127,13 @@ export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
     
     // Sort daily notes by date descending (newest first)
     daily.sort((a, b) => b.path.localeCompare(a.path));
+
+    // Sort other nodes: directories first, then files, alphabetically within each group
+    other.sort((a, b) => {
+      if (a.type === "dir" && b.type !== "dir") return -1;
+      if (a.type !== "dir" && b.type === "dir") return 1;
+      return a.name.localeCompare(b.name);
+    });
     
     return { botFiles: bot, dailyNotes: daily, otherNodes: other };
   }, [nodes]);
@@ -230,7 +237,11 @@ function TreeNode({ node, activeFile, onSelect, depth, collapsed, onToggle }: {
             <span className="text-[10px] ml-auto mr-2" style={{ color: "var(--text-faint)" }}>{node.children.length}</span>
           )}
         </button>
-        {!isCollapsed && node.children?.map((child) => (
+        {!isCollapsed && node.children?.slice().sort((a, b) => {
+          if (a.type === "dir" && b.type !== "dir") return -1;
+          if (a.type !== "dir" && b.type === "dir") return 1;
+          return a.name.localeCompare(b.name);
+        }).map((child) => (
           <TreeNode key={child.path} node={child} activeFile={activeFile} onSelect={onSelect} depth={depth + 1} collapsed={collapsed} onToggle={onToggle} />
         ))}
       </div>
