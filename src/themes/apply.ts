@@ -31,13 +31,11 @@ export function applyThemeStyles(article: HTMLElement, theme: MarkdownTheme) {
   const styles = theme.styles;
   if (!styles) return;
 
-  // Dark mode: wrap with light background
-  const isDark = document.documentElement.classList.contains("dark");
-  if (isDark) {
-    article.style.background = "#fff";
-    article.style.borderRadius = "12px";
-    article.style.padding = "2rem";
-  }
+  // Non-default themes are light-colored — always apply white background wrapper
+  // so they look correct in both light and dark mode
+  article.style.background = "#fff";
+  article.style.borderRadius = "12px";
+  article.style.padding = "2rem";
 
   // Apply body style to article
   if (styles.body) {

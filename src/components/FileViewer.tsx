@@ -387,7 +387,7 @@ function BacklinksPanel({ filePath, onOpenFile }: { filePath: string; onOpenFile
   }, [filePath]);
 
   return (
-    <div className="border-t mt-6 pt-4" style={{ borderColor: "var(--border)" }}>
+    <div className="border-t mt-6 pt-4" data-backlinks="true" style={{ borderColor: "var(--border)" }}>
       <h3 className="text-sm font-semibold flex items-center gap-1.5 mb-3" style={{ color: "var(--text-muted)" }}>
         <Link2 className="w-4 h-4" />
         {t("backlinks.title")}
