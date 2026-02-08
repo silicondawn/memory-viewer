@@ -430,3 +430,15 @@ html:not(.dark) .shiki span {
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--scrollbar-thumb); border-radius: 9999px; }
 ::-webkit-scrollbar-thumb:hover { background: var(--scrollbar-hover); }
+
+/* Superscript and subscript - use monospace for alignment */
+.markdown-body sup,
+.markdown-body sub {
+  font-family: 'JetBrains Mono', 'Fira Code', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.65em;
+  vertical-align: super;
+  line-height: 0;
+}
+.markdown-body sub {
+  vertical-align: sub;
+}
