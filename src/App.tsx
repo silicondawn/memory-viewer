@@ -16,6 +16,7 @@ import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, 
 import { useSyncExternalStore } from "react";
 import { pluginRegistry } from "./plugins/registry";
 import { useZoom } from "./hooks/useZoom";
+import { useMarkdownTheme } from "./themes";
 import { useResizableSidebar } from "./hooks/useResizableSidebar";
 import { useLocaleState, LocaleContext } from "./hooks/useLocale";
 
@@ -31,6 +32,7 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [teslaMode, setTeslaMode] = useState(() => localStorage.getItem("memory-viewer-tesla") === "true");
   const { zoom, setZoom, ZOOM_LEVELS } = useZoom();
+  const { current: currentMdTheme, setTheme: setMdTheme, themes: mdThemes } = useMarkdownTheme();
   const { width: sidebarWidth, onMouseDown: onResizeMouseDown, onTouchStart: onResizeTouchStart } = useResizableSidebar();
   const { theme, toggle: toggleTheme } = useTheme();
   const sensitive = useSensitiveState();
@@ -210,6 +212,25 @@ export default function App() {
                         }}
                       >
                         {level}%
+                      </button>
+                    ))}
+                  </div>
+                  {/* Preview Theme */}
+                  <div className="text-xs font-medium mb-2" style={{ color: "var(--text-muted)" }}>Preview Theme</div>
+                  <div className="flex flex-wrap gap-1 mb-3">
+                    {mdThemes.map((theme) => (
+                      <button
+                        key={theme.id}
+                        onClick={() => setMdTheme(theme.id)}
+                        className="px-2 py-1 rounded text-xs transition-colors"
+                        style={{
+                          background: currentMdTheme.id === theme.id ? "var(--bg-active)" : "var(--bg-hover)",
+                          color: currentMdTheme.id === theme.id ? "var(--link)" : "var(--text-secondary)",
+                          border: currentMdTheme.id === theme.id ? "1px solid var(--link)" : "1px solid var(--border)",
+                          fontWeight: currentMdTheme.id === theme.id ? 600 : 400,
+                        }}
+                      >
+                        {theme.name}
                       </button>
                     ))}
                   </div>

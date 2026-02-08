@@ -1,0 +1,30 @@
+import type { MarkdownTheme } from "../types";
+
+export const classicTypoTheme: MarkdownTheme = {
+  id: "classic-typo",
+  name: "经典排版",
+  styles: {
+    body: 'font-family:Georgia,"Noto Serif SC","Source Han Serif CN","Songti SC","SimSun",serif;font-size:16px;line-height:2;color:#1a1a1a;letter-spacing:0.02em;',
+    h1: 'font-size:26px;font-weight:400;color:#000;text-align:center;letter-spacing:0.15em;margin:2.4em 0 1em;line-height:1.4;font-family:Georgia,"Noto Serif SC","Source Han Serif CN",serif;',
+    h2: 'font-size:20px;font-weight:400;color:#000;letter-spacing:0.1em;margin:2em 0 0.8em;line-height:1.5;border-bottom:1px solid #000;padding-bottom:0.4em;font-family:Georgia,"Noto Serif SC","Source Han Serif CN",serif;',
+    h3: 'font-size:17px;font-weight:700;color:#1a1a1a;letter-spacing:0.06em;margin:1.6em 0 0.6em;line-height:1.5;',
+    h4: 'font-size:16px;font-weight:700;color:#333;letter-spacing:0.04em;margin:1.2em 0 0.4em;',
+    p: 'margin:0 0 1.2em;line-height:2;font-size:16px;text-indent:2em;text-align:justify;',
+    a: 'color:#1a1a1a;text-decoration:none;border-bottom:1px solid #999;',
+    strong: 'font-weight:700;color:#000;',
+    em: 'font-style:italic;color:#333;',
+    blockquote: 'border-left:2px solid #1a1a1a;padding:0.4em 0 0.4em 1.6em;margin:1.6em 0;color:#555;font-size:15px;line-height:1.9;font-style:italic;',
+    code: 'background:#f5f2ed;padding:2px 5px;border-radius:2px;font-family:Menlo,Monaco,"Courier New",monospace;font-size:13px;color:#4a3728;',
+    pre: 'background:#f5f2ed;padding:1.2em 1.6em;border-radius:2px;overflow-x:auto;margin:1.6em 0;border:1px solid #e8e0d4;',
+    precode: 'font-family:Menlo,Monaco,"Courier New",monospace;font-size:13px;line-height:1.8;color:#2d2006;background:none;padding:0;',
+    ul: 'padding-left:2em;margin:0.6em 0 1.2em;',
+    ol: 'padding-left:2em;margin:0.6em 0 1.2em;',
+    li: 'margin:0.3em 0;line-height:2;font-size:16px;text-align:justify;',
+    table: 'border-collapse:collapse;width:100%;margin:1.6em 0;',
+    th: 'border-bottom:2px solid #1a1a1a;border-top:2px solid #1a1a1a;padding:0.6em 1em;font-weight:400;text-align:left;font-size:15px;letter-spacing:0.04em;',
+    td: 'border-bottom:1px solid #ccc;padding:0.6em 1em;font-size:15px;',
+    hr: 'border:none;text-align:center;margin:2em 0;height:auto;background:none;overflow:visible;line-height:1;font-size:18px;letter-spacing:1em;color:#999;',
+    hrContent: '* * *',
+    img: 'max-width:100%;height:auto;',
+  },
+};

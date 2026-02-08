@@ -10,6 +10,8 @@ import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
 import { lazy, Suspense } from "react";
 import { renderMermaid, THEMES } from "beautiful-mermaid";
+import { useMarkdownTheme } from "../themes";
+import { applyThemeStyles, cleanInlineStyles } from "../themes/apply";
 import mermaid from "mermaid";
 const MarkdownEditor = lazy(() => import("./MarkdownEditor").then(m => ({ default: m.MarkdownEditor })));
 
@@ -436,6 +438,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
   const [conflict, setConflict] = useState<ConflictResult | null>(null);
   const contentRef = useRef<HTMLDivElement>(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const { current: mdTheme } = useMarkdownTheme();
 
   useEffect(() => {
     setLoading(true);
@@ -545,6 +548,17 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
   }, [hasChanges]);
 
   const frontMatter = useMemo(() => parseFrontMatter(content), [content]);
+
+  // Apply markdown theme
+  useEffect(() => {
+    if (!contentRef.current || editing) return;
+    const article = contentRef.current.querySelector(".markdown-body");
+    if (!article || !mdTheme.styles) {
+      cleanInlineStyles(article);
+      return;
+    }
+    applyThemeStyles(article as HTMLElement, mdTheme);
+  }, [content, mdTheme, editing, refreshKey]);
 
   const fileStats = useMemo(() => {
     const bytes = new Blob([content]).size;
