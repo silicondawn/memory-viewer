@@ -224,6 +224,7 @@ function TreeNode({ node, activeFile, onSelect, depth, collapsed, onToggle }: {
           style={{ paddingLeft: `${indent}px` }}
         >
           {!isCollapsed ? <ChevronDown className="w-3 h-3 opacity-60 shrink-0" /> : <ChevronRight className="w-3 h-3 opacity-60 shrink-0" />}
+          <Folder className={`w-3.5 h-3.5 shrink-0 ${!isCollapsed ? "text-amber-400" : "text-amber-400/60"}`} />
           <span className="truncate">{node.name}</span>
           {node.children && (
             <span className="text-[10px] ml-auto mr-2" style={{ color: "var(--text-faint)" }}>{node.children.length}</span>
