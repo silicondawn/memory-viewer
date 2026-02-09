@@ -310,8 +310,8 @@ export default function App() {
               onClick={() => openFile(todayFile)}
               className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
               style={{
-                color: activeFile === todayFile ? "var(--link)" : "var(--text-secondary)",
-                background: activeFile === todayFile ? "var(--bg-active)" : undefined,
+                color: view === "file" && activeFile === todayFile ? "var(--link)" : "var(--text-secondary)",
+                background: view === "file" && activeFile === todayFile ? "var(--bg-active)" : undefined,
               }}
             >
               <Calendar className="w-4 h-4 text-green-400" />
