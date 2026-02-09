@@ -132,6 +132,7 @@ function collectMdFiles(dir: string, prefix = ""): string[] {
 }
 
 // ---------------------------------------------------------------------------
+// ---------------------------------------------------------------------------
 // REST API
 // ---------------------------------------------------------------------------
 
@@ -259,7 +260,6 @@ app.get("/api/search", (c) => {
   return c.json(results);
 });
 
-// QMD collection prefix → workspace-relative path mapping
 // QMD availability detection — cached at startup
 let qmdAvailable: boolean | null = null;
 let qmdHasVectors = false;

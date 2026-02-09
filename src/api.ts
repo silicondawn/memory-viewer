@@ -196,10 +196,23 @@ export async function fetchAgentStatus(): Promise<AgentStatus> {
   return r.json();
 }
 
+export interface EmbeddingSettings {
+  enabled: boolean;
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+  apiKeySet?: boolean;
+}
+
+export interface Settings {
+  embedding: EmbeddingSettings;
+}
+
 export interface Capabilities {
   qmd: boolean;
   qmdBm25: boolean;
   qmdVector: boolean;
+  embeddingApi: boolean;
 }
 
 export async function fetchCapabilities(): Promise<Capabilities> {
@@ -207,6 +220,29 @@ export async function fetchCapabilities(): Promise<Capabilities> {
     const r = await fetch(`${_baseUrl}/api/capabilities`);
     return r.json();
   } catch {
-    return { qmd: false, qmdBm25: false, qmdVector: false };
+    return { qmd: false, qmdBm25: false, qmdVector: false, embeddingApi: false };
   }
+}
+
+export async function fetchSettings(): Promise<Settings> {
+  const r = await fetch(`${_baseUrl}/api/settings`);
+  return r.json();
+}
+
+export async function saveSettings(settings: Partial<Settings>): Promise<{ success: boolean }> {
+  const r = await fetch(`${_baseUrl}/api/settings`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings),
+  });
+  return r.json();
+}
+
+export async function testEmbeddingConnection(settings?: Partial<EmbeddingSettings>): Promise<{ success: boolean; error?: string }> {
+  const r = await fetch(`${_baseUrl}/api/settings/test-embedding`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(settings || {}),
+  });
+  return r.json();
 }
