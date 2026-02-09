@@ -320,6 +320,25 @@ app.put("/api/settings", async (c) => {
   return c.json({ ok: true });
 });
 
+app.get("/api/settings/embedding-stats", (c) => {
+  try {
+    const db = getEmbeddingsDb();
+    const model = appSettings.embedding.model || "text-embedding-3-small";
+    const total = (db.prepare("SELECT COUNT(*) as n FROM embeddings WHERE model = ?").get(model) as any)?.n || 0;
+    const allFiles = collectMdFiles(WORKSPACE).length;
+    const dbSize = fs.existsSync(EMBEDDINGS_DB_PATH) ? fs.statSync(EMBEDDINGS_DB_PATH).size : 0;
+    return c.json({
+      cachedFiles: total,
+      totalFiles: allFiles,
+      coverage: allFiles > 0 ? Math.round((total / allFiles) * 100) : 0,
+      dbSize,
+      model,
+    });
+  } catch {
+    return c.json({ cachedFiles: 0, totalFiles: 0, coverage: 0, dbSize: 0, model: "" });
+  }
+});
+
 app.post("/api/settings/test-embedding", async (c) => {
   const { apiUrl, apiKey, model } = await c.req.json();
   const url = apiUrl || appSettings.embedding.apiUrl;

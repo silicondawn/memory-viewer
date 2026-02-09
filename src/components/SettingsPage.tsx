@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
-import { fetchSettings, saveSettings, testEmbeddingConnection, type EmbeddingSettings } from "../api";
-import { Gear, FloppyDisk, Lightning, CheckCircle, XCircle } from "@phosphor-icons/react";
+import { fetchSettings, saveSettings, testEmbeddingConnection, type EmbeddingSettings, getBaseUrl } from "../api";
+import { Gear, FloppyDisk, Lightning, CheckCircle, XCircle, Database, Files } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
 export function SettingsPage() {
@@ -17,10 +17,19 @@ export function SettingsPage() {
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<{ success: boolean; message?: string } | null>(null);
   const [touched, setTouched] = useState(false);
+  const [embStats, setEmbStats] = useState<{ cachedFiles: number; totalFiles: number; coverage: number; dbSize: number; model: string } | null>(null);
 
   useEffect(() => {
     loadSettings();
+    loadEmbStats();
   }, []);
+
+  const loadEmbStats = async () => {
+    try {
+      const r = await fetch(`${getBaseUrl()}/api/settings/embedding-stats`);
+      setEmbStats(await r.json());
+    } catch {}
+  };
 
   const loadSettings = async () => {
     try {
@@ -225,6 +234,46 @@ export function SettingsPage() {
             </div>
           )}
         </div>
+
+        {/* Embedding Stats */}
+        {settings.enabled && embStats && embStats.cachedFiles > 0 && (
+          <div className="mt-4 p-3 rounded-lg" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
+            <div className="flex items-center gap-2 mb-2 text-sm font-medium" style={{ color: "var(--text-secondary)" }}>
+              <Database size={16} className="text-blue-400" />
+              Embedding 缓存状态
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <div>
+                <div className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+                  {embStats.cachedFiles}/{embStats.totalFiles}
+                </div>
+                <div className="text-xs" style={{ color: "var(--text-faint)" }}>已缓存文件</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+                  {embStats.coverage}%
+                </div>
+                <div className="text-xs" style={{ color: "var(--text-faint)" }}>覆盖率</div>
+              </div>
+              <div>
+                <div className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>
+                  {embStats.dbSize > 1048576 ? `${(embStats.dbSize / 1048576).toFixed(1)}MB` : `${Math.round(embStats.dbSize / 1024)}KB`}
+                </div>
+                <div className="text-xs" style={{ color: "var(--text-faint)" }}>缓存大小</div>
+              </div>
+            </div>
+            {/* Coverage bar */}
+            <div className="mt-2 w-full h-1.5 rounded-full overflow-hidden" style={{ background: "var(--border)" }}>
+              <div
+                className="h-full rounded-full bg-blue-500 transition-all"
+                style={{ width: `${embStats.coverage}%` }}
+              />
+            </div>
+            <div className="text-[11px] mt-1" style={{ color: "var(--text-faint)" }}>
+              模型: {embStats.model}
+            </div>
+          </div>
+        )}
 
         {/* Save Button */}
         <div className="flex justify-end mt-6 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
