@@ -163,6 +163,7 @@ const dict: Record<string, Record<Locale, string>> = {
   "timeline.noResults": { en: "No entries found with this tag", zh: "未找到包含此标签的日记" },
   "timeline.empty": { en: "No memory entries found", zh: "未找到记忆日记" },
   "timeline.chars": { en: "chars", zh: "字" },
+  "timeline.months": { en: "months", zh: "个月" },
 
   // Settings
   "settings.title": { en: "Settings", zh: "设置" },
