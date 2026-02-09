@@ -14,6 +14,7 @@ import { serve } from "@hono/node-server";
 import fs from "fs";
 import path from "path";
 import os from "os";
+import Database from "better-sqlite3";
 import { exec as execCallback } from "child_process";
 import util from "util";
 import { watch } from "chokidar";
@@ -387,8 +388,41 @@ function cosineSim(a: number[], b: number[]): number {
   return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-10);
 }
 
-// Simple in-memory embedding cache: path → { mtime, embedding }
-const embeddingCache = new Map<string, { mtime: number; embedding: number[] }>();
+// SQLite embedding cache — persistent across restarts
+const EMBEDDINGS_DB_PATH = path.join(SETTINGS_DIR, "embeddings.sqlite");
+let embeddingsDb: Database.Database | null = null;
+
+function getEmbeddingsDb(): Database.Database {
+  if (!embeddingsDb) {
+    fs.mkdirSync(SETTINGS_DIR, { recursive: true });
+    embeddingsDb = new Database(EMBEDDINGS_DB_PATH);
+    embeddingsDb.pragma("journal_mode = WAL");
+    embeddingsDb.exec(`
+      CREATE TABLE IF NOT EXISTS embeddings (
+        file_path TEXT PRIMARY KEY,
+        mtime REAL NOT NULL,
+        model TEXT NOT NULL,
+        embedding BLOB NOT NULL
+      )
+    `);
+  }
+  return embeddingsDb;
+}
+
+function getCachedEmbedding(filePath: string, mtime: number): number[] | null {
+  const db = getEmbeddingsDb();
+  const model = appSettings.embedding.model || "text-embedding-3-small";
+  const row = db.prepare("SELECT embedding FROM embeddings WHERE file_path = ? AND mtime = ? AND model = ?").get(filePath, mtime, model) as any;
+  if (!row) return null;
+  return Array.from(new Float64Array(row.embedding.buffer, row.embedding.byteOffset, row.embedding.byteLength / 8));
+}
+
+function setCachedEmbedding(filePath: string, mtime: number, embedding: number[]): void {
+  const db = getEmbeddingsDb();
+  const model = appSettings.embedding.model || "text-embedding-3-small";
+  const buf = Buffer.from(new Float64Array(embedding).buffer);
+  db.prepare("INSERT OR REPLACE INTO embeddings (file_path, mtime, model, embedding) VALUES (?, ?, ?, ?)").run(filePath, mtime, model, buf);
+}
 
 async function getFileEmbeddings(files: string[]): Promise<Map<string, number[]>> {
   const result = new Map<string, number[]>();
@@ -398,24 +432,24 @@ async function getFileEmbeddings(files: string[]): Promise<Map<string, number[]>
     const full = path.join(WORKSPACE, relPath);
     try {
       const stat = fs.statSync(full);
-      const cached = embeddingCache.get(relPath);
-      if (cached && cached.mtime === stat.mtimeMs) {
-        result.set(relPath, cached.embedding);
+      const cached = getCachedEmbedding(relPath, stat.mtimeMs);
+      if (cached) {
+        result.set(relPath, cached);
       } else {
         toEmbed.push(relPath);
       }
     } catch { /* skip */ }
   }
 
-  // Batch embed uncached files (max 10 at a time to stay responsive)
+  // Embed uncached files (max 20 per request to stay responsive)
   for (const relPath of toEmbed.slice(0, 20)) {
     const full = path.join(WORKSPACE, relPath);
     try {
-      const content = fs.readFileSync(full, "utf-8").substring(0, 2000); // first 2000 chars
+      const content = fs.readFileSync(full, "utf-8").substring(0, 2000);
       const emb = await getEmbedding(content);
       if (emb) {
         const stat = fs.statSync(full);
-        embeddingCache.set(relPath, { mtime: stat.mtimeMs, embedding: emb });
+        setCachedEmbedding(relPath, stat.mtimeMs, emb);
         result.set(relPath, emb);
       }
     } catch { /* skip */ }

@@ -1,83 +1,52 @@
 import { useState, useEffect } from "react";
-import { Gear, FloppyDisk, Lightning, CheckCircle, XCircle, ArrowLeft } from "@phosphor-icons/react";
-import { getBaseUrl } from "../api";
+import { fetchSettings, saveSettings, testEmbeddingConnection, type EmbeddingSettings } from "../api";
+import { Gear, FloppyDisk, Lightning, CheckCircle, XCircle } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
-interface EmbeddingSettings {
-  enabled: boolean;
-  apiUrl: string;
-  apiKey: string;
-  apiKeySet: boolean;
-  model: string;
-}
-
-interface Settings {
-  embedding: EmbeddingSettings;
-}
-
-export function SettingsPage({ onBack }: { onBack: () => void }) {
+export function SettingsPage() {
   const { t } = useLocale();
-  const [settings, setSettings] = useState<Settings>({
-    embedding: { enabled: false, apiUrl: "", apiKey: "", apiKeySet: false, model: "" },
+  const [settings, setSettings] = useState<EmbeddingSettings>({
+    enabled: false,
+    apiUrl: "",
+    apiKey: "",
+    model: "",
+    apiKeySet: false
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [testing, setTesting] = useState(false);
-  const [testResult, setTestResult] = useState<{ ok: boolean; message: string } | null>(null);
-  const [saveResult, setSaveResult] = useState<{ ok: boolean } | null>(null);
+  const [testResult, setTestResult] = useState<{ success: boolean; message?: string } | null>(null);
+  const [touched, setTouched] = useState(false);
 
   useEffect(() => {
-    fetch(`${getBaseUrl()}/api/settings`)
-      .then((r) => r.json())
-      .then((data) => {
-        setSettings({
-          embedding: {
-            enabled: data.embedding?.enabled ?? false,
-            apiUrl: data.embedding?.apiUrl ?? "",
-            apiKey: "",
-            apiKeySet: data.embedding?.apiKeySet ?? false,
-            model: data.embedding?.model ?? "",
-          },
-        });
-      })
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    loadSettings();
   }, []);
 
-  const updateEmbedding = (patch: Partial<EmbeddingSettings>) => {
-    setSettings((s) => ({ ...s, embedding: { ...s.embedding, ...patch } }));
-    setSaveResult(null);
-    setTestResult(null);
+  const loadSettings = async () => {
+    try {
+      const data = await fetchSettings();
+      setSettings(data.embedding);
+    } catch (err) {
+      console.error("Failed to load settings:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleChange = (field: keyof EmbeddingSettings, value: any) => {
+    setSettings(prev => ({ ...prev, [field]: value }));
+    setTouched(true);
   };
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const body: any = {
-        embedding: {
-          enabled: settings.embedding.enabled,
-          apiUrl: settings.embedding.apiUrl,
-          model: settings.embedding.model,
-        },
-      };
-      // Only send apiKey if user typed a new one
-      if (settings.embedding.apiKey) {
-        body.embedding.apiKey = settings.embedding.apiKey;
-      }
-      const r = await fetch(`${getBaseUrl()}/api/settings`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-      setSaveResult({ ok: r.ok });
-      if (r.ok) {
-        setSettings((s) => ({
-          ...s,
-          embedding: { ...s.embedding, apiKey: "", apiKeySet: true },
-        }));
-      }
-    } catch {
-      setSaveResult({ ok: false });
+      await saveSettings({ embedding: settings });
+      setTouched(false);
+      // Reload to get the safe version (with apiKey hidden)
+      await loadSettings();
+    } catch (err) {
+      console.error("Failed to save settings:", err);
     } finally {
       setSaving(false);
     }
@@ -87,19 +56,16 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
     setTesting(true);
     setTestResult(null);
     try {
-      const r = await fetch(`${getBaseUrl()}/api/settings/test-embedding`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          apiUrl: settings.embedding.apiUrl,
-          apiKey: settings.embedding.apiKey || undefined,
-          model: settings.embedding.model,
-        }),
+      const result = await testEmbeddingConnection(settings);
+      setTestResult({
+        success: result.success,
+        message: result.error || "Connection successful"
       });
-      const data = await r.json();
-      setTestResult({ ok: data.ok, message: data.message });
-    } catch (e: any) {
-      setTestResult({ ok: false, message: e.message || "Connection failed" });
+    } catch (err: any) {
+      setTestResult({
+        success: false,
+        message: err.message || "Test failed"
+      });
     } finally {
       setTesting(false);
     }
@@ -107,130 +73,184 @@ export function SettingsPage({ onBack }: { onBack: () => void }) {
 
   if (loading) {
     return (
-      <div className="h-full flex items-center justify-center">
-        <div className="w-6 h-6 border-2 border-t-blue-400 rounded-full animate-spin" style={{ borderColor: "var(--border)" }} />
+      <div className="flex items-center justify-center h-full" style={{ color: "var(--text-faint)" }}>
+        <div className="w-5 h-5 border-2 border-t-blue-400 rounded-full animate-spin mr-3" style={{ borderColor: "var(--border)" }} />
+        Loading settings...
       </div>
     );
   }
 
   return (
-    <div className="h-full overflow-auto">
-      <div className="max-w-2xl mx-auto px-6 py-8">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-8">
-          <button onClick={onBack} className="p-1 rounded hover:bg-white/5" style={{ color: "var(--text-muted)" }}>
-            <ArrowLeft size={20} />
-          </button>
-          <Gear size={24} style={{ color: "var(--text-faint)" }} />
-          <h1 className="text-xl font-semibold" style={{ color: "var(--text-primary)" }}>
-            {t("settings.title")}
-          </h1>
-        </div>
+    <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
+      <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
+        <Gear className="w-7 h-7 text-blue-400" /> {t("settings.title") || "⚙️ Settings"}
+      </h1>
 
-        {/* Embedding Section */}
-        <div className="rounded-lg p-5 mb-6" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-base font-medium flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-              🧠 {t("settings.embedding.title")}
-            </h2>
+      {/* Embedding Settings */}
+      <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
+        <h2 className="text-lg font-semibold mb-4" style={{ color: "var(--text-primary)" }}>
+          {t("settings.embedding.title") || "向量搜索 (Embedding)"}
+        </h2>
+        
+        <div className="space-y-4">
+          {/* Enable/Disable toggle */}
+          <div className="flex items-center justify-between">
+            <div>
+              <div className="font-medium" style={{ color: "var(--text-secondary)" }}>
+                {t("settings.embedding.enable") || "启用向量搜索"}
+              </div>
+              <div className="text-sm" style={{ color: "var(--text-faint)" }}>
+                {t("settings.embedding.enableDesc") || "使用 OpenAI Embeddings API 进行语义搜索"}
+              </div>
+            </div>
             <label className="relative inline-flex items-center cursor-pointer">
               <input
                 type="checkbox"
-                checked={settings.embedding.enabled}
-                onChange={(e) => updateEmbedding({ enabled: e.target.checked })}
+                checked={settings.enabled}
+                onChange={(e) => handleChange("enabled", e.target.checked)}
                 className="sr-only peer"
               />
-              <div className="w-9 h-5 bg-gray-600 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:bg-blue-500 after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all" />
+              <div className="w-11 h-6 rounded-full peer bg-gray-700 peer-checked:bg-blue-600 peer-focus:ring-2 peer-focus:ring-blue-800" style={{ background: settings.enabled ? "var(--link)" : "var(--border)" }}>
+                <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full transition-transform ${settings.enabled ? "translate-x-5" : ""}`} style={{ background: "var(--bg-primary)" }} />
+              </div>
             </label>
           </div>
 
-          <p className="text-xs mb-4" style={{ color: "var(--text-faint)" }}>
-            {t("settings.embedding.description")}
-          </p>
+          {settings.enabled && (
+            <div className="space-y-4 pt-2">
+              {/* API URL */}
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                  {t("settings.embedding.apiUrl") || "API 地址"}
+                </label>
+                <input
+                  type="text"
+                  value={settings.apiUrl}
+                  onChange={(e) => handleChange("apiUrl", e.target.value)}
+                  placeholder="https://api.openai.com/v1/embeddings"
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    background: "var(--bg-secondary)",
+                    color: "var(--text-primary)",
+                    border: "1px solid var(--border)",
+                  }}
+                />
+                <div className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
+                  {t("settings.embedding.apiUrlDesc") || "OpenAI Embeddings API 或兼容的端点"}
+                </div>
+              </div>
 
-          <div className="space-y-3">
-            {/* API URL */}
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-                API URL
-              </label>
-              <input
-                type="text"
-                value={settings.embedding.apiUrl}
-                onChange={(e) => updateEmbedding({ apiUrl: e.target.value })}
-                placeholder="https://api.openai.com/v1/embeddings"
-                className="w-full px-3 py-2 rounded-md text-sm bg-transparent outline-none focus:ring-1 focus:ring-blue-500"
-                style={{ border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
+              {/* API Key */}
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                  {t("settings.embedding.apiKey") || "API 密钥"}
+                </label>
+                <input
+                  type="password"
+                  value={settings.apiKeySet ? "••••••" : settings.apiKey}
+                  onChange={(e) => handleChange("apiKey", e.target.value)}
+                  placeholder="sk-..."
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    background: "var(--bg-secondary)",
+                    color: "var(--text-primary)",
+                    border: "1px solid var(--border)",
+                  }}
+                />
+                <div className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
+                  {settings.apiKeySet 
+                    ? (t("settings.embedding.apiKeySet") || "API 密钥已设置")
+                    : (t("settings.embedding.apiKeyDesc") || "OpenAI API 密钥 (sk-...)")}
+                </div>
+              </div>
+
+              {/* Model */}
+              <div>
+                <label className="block text-sm font-medium mb-1" style={{ color: "var(--text-secondary)" }}>
+                  {t("settings.embedding.model") || "模型"}
+                </label>
+                <input
+                  type="text"
+                  value={settings.model}
+                  onChange={(e) => handleChange("model", e.target.value)}
+                  placeholder="text-embedding-3-small"
+                  className="w-full px-3 py-2 rounded-md text-sm"
+                  style={{
+                    background: "var(--bg-secondary)",
+                    color: "var(--text-primary)",
+                    border: "1px solid var(--border)",
+                  }}
+                />
+                <div className="text-xs mt-1" style={{ color: "var(--text-faint)" }}>
+                  {t("settings.embedding.modelDesc") || "Embedding 模型名称，如 text-embedding-3-small"}
+                </div>
+              </div>
+
+              {/* Test Connection */}
+              <div className="pt-2">
+                <button
+                  onClick={handleTest}
+                  disabled={testing || !settings.apiUrl || !settings.apiKey || !settings.model}
+                  className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  style={{
+                    background: "var(--bg-secondary)",
+                    color: "var(--text-secondary)",
+                    border: "1px solid var(--border)",
+                  }}
+                >
+                  {testing ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-t-blue-400 rounded-full animate-spin" style={{ borderColor: "var(--border)" }} />
+                      {t("settings.embedding.testing") || "测试中..."}
+                    </>
+                  ) : (
+                    <>
+                      <Lightning className="w-4 h-4" />
+                      {t("settings.embedding.test") || "测试连接"}
+                    </>
+                  )}
+                </button>
+
+                {testResult && (
+                  <div className={`flex items-center gap-2 mt-2 text-sm ${testResult.success ? "text-green-400" : "text-red-400"}`}>
+                    {testResult.success ? (
+                      <CheckCircle className="w-4 h-4" />
+                    ) : (
+                      <XCircle className="w-4 h-4" />
+                    )}
+                    {testResult.message}
+                  </div>
+                )}
+              </div>
             </div>
-
-            {/* API Key */}
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-                API Key
-              </label>
-              <input
-                type="password"
-                value={settings.embedding.apiKey}
-                onChange={(e) => updateEmbedding({ apiKey: e.target.value })}
-                placeholder={settings.embedding.apiKeySet ? "••••••••（已设置，留空保持不变）" : "sk-..."}
-                className="w-full px-3 py-2 rounded-md text-sm bg-transparent outline-none focus:ring-1 focus:ring-blue-500"
-                style={{ border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
-            </div>
-
-            {/* Model */}
-            <div>
-              <label className="block text-xs font-medium mb-1" style={{ color: "var(--text-muted)" }}>
-                {t("settings.embedding.model")}
-              </label>
-              <input
-                type="text"
-                value={settings.embedding.model}
-                onChange={(e) => updateEmbedding({ model: e.target.value })}
-                placeholder="text-embedding-3-small"
-                className="w-full px-3 py-2 rounded-md text-sm bg-transparent outline-none focus:ring-1 focus:ring-blue-500"
-                style={{ border: "1px solid var(--border)", color: "var(--text-primary)" }}
-              />
-            </div>
-          </div>
-
-          {/* Actions */}
-          <div className="flex items-center gap-3 mt-5">
-            <button
-              onClick={handleTest}
-              disabled={testing || !settings.embedding.apiUrl}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-medium transition-colors disabled:opacity-40"
-              style={{ background: "var(--bg-tertiary)", color: "var(--text-secondary)", border: "1px solid var(--border)" }}
-            >
-              <Lightning size={14} />
-              {testing ? t("settings.testing") : t("settings.testConnection")}
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-1.5 rounded-md text-xs font-medium text-white transition-colors disabled:opacity-40"
-              style={{ background: "#3b82f6" }}
-            >
-              <FloppyDisk size={14} />
-              {saving ? t("settings.saving") : t("settings.save")}
-            </button>
-
-            {testResult && (
-              <span className={`flex items-center gap-1 text-xs ${testResult.ok ? "text-green-400" : "text-red-400"}`}>
-                {testResult.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                {testResult.message}
-              </span>
-            )}
-            {saveResult && (
-              <span className={`flex items-center gap-1 text-xs ${saveResult.ok ? "text-green-400" : "text-red-400"}`}>
-                {saveResult.ok ? <CheckCircle size={14} /> : <XCircle size={14} />}
-                {saveResult.ok ? t("settings.saved") : t("settings.saveFailed")}
-              </span>
-            )}
-          </div>
+          )}
         </div>
-      </div>
+
+        {/* Save Button */}
+        <div className="flex justify-end mt-6 pt-4 border-t" style={{ borderColor: "var(--border)" }}>
+          <button
+            onClick={handleSave}
+            disabled={saving || !touched}
+            className="flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            style={{
+              background: "var(--link)",
+              color: "white",
+            }}
+          >
+            {saving ? (
+              <>
+                <div className="w-4 h-4 border-2 border-t-white rounded-full animate-spin" style={{ borderColor: "rgba(255,255,255,0.3)" }} />
+                {t("settings.saving") || "保存中..."}
+              </>
+            ) : (
+              <>
+                <FloppyDisk className="w-4 h-4" />
+                {t("settings.save") || "保存设置"}
+              </>
+            )}
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

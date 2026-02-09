@@ -164,6 +164,24 @@ const dict: Record<string, Record<Locale, string>> = {
   "timeline.empty": { en: "No memory entries found", zh: "未找到记忆日记" },
   "timeline.chars": { en: "chars", zh: "字" },
 
+  // Settings
+  "settings.title": { en: "Settings", zh: "设置" },
+  "sidebar.settings": { en: "Settings", zh: "设置" },
+  "settings.embedding.title": { en: "Embedding Search", zh: "向量搜索" },
+  "settings.embedding.enable": { en: "Enable Embedding Search", zh: "启用向量搜索" },
+  "settings.embedding.enableDesc": { en: "Use OpenAI Embeddings API for semantic search", zh: "使用 OpenAI Embeddings API 进行语义搜索" },
+  "settings.embedding.apiUrl": { en: "API URL", zh: "API 地址" },
+  "settings.embedding.apiUrlDesc": { en: "OpenAI Embeddings API or compatible endpoint", zh: "OpenAI Embeddings API 或兼容的端点" },
+  "settings.embedding.apiKey": { en: "API Key", zh: "API 密钥" },
+  "settings.embedding.apiKeyDesc": { en: "OpenAI API key (sk-...)", zh: "OpenAI API 密钥 (sk-...)" },
+  "settings.embedding.apiKeySet": { en: "API key is set", zh: "API 密钥已设置" },
+  "settings.embedding.model": { en: "Model", zh: "模型" },
+  "settings.embedding.modelDesc": { en: "Embedding model name, e.g. text-embedding-3-small", zh: "Embedding 模型名称，如 text-embedding-3-small" },
+  "settings.embedding.test": { en: "Test Connection", zh: "测试连接" },
+  "settings.embedding.testing": { en: "Testing...", zh: "测试中..." },
+  "settings.save": { en: "Save Settings", zh: "保存设置" },
+  "settings.saving": { en: "Saving...", zh: "保存中..." },
+
   // Months
   "month.01": { en: "Jan", zh: "1月" },
   "month.02": { en: "Feb", zh: "2月" },
