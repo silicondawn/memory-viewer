@@ -105,7 +105,10 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
             style={{ color: "var(--text-primary)" }}
           />
           {loading && (
-            <div className="w-4 h-4 border-2 border-t-blue-400 rounded-full animate-spin" style={{ borderColor: "var(--border)" }} />
+            <div className="flex items-center gap-2">
+              {mode !== "text" && <span className="text-xs" style={{ color: "var(--text-faint)" }}>搜索中…</span>}
+              <div className="w-4 h-4 border-2 border-t-blue-400 rounded-full animate-spin" style={{ borderColor: "var(--border)" }} />
+            </div>
           )}
           <kbd className="hidden sm:inline-block text-xs px-1.5 py-0.5 rounded" style={{ color: "var(--text-faint)", background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
             ESC
@@ -133,6 +136,17 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
 
         {/* Results */}
         <div className="max-h-[50vh] overflow-y-auto">
+          {loading && query.length >= 2 && mode !== "text" && (
+            <div className="px-4 py-3 space-y-3">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse">
+                  <div className="h-4 rounded w-2/3 mb-2" style={{ background: "var(--bg-tertiary)" }} />
+                  <div className="h-3 rounded w-full mb-1" style={{ background: "var(--bg-tertiary)", opacity: 0.6 }} />
+                  <div className="h-3 rounded w-4/5" style={{ background: "var(--bg-tertiary)", opacity: 0.4 }} />
+                </div>
+              ))}
+            </div>
+          )}
           {query.length >= 2 && totalMatches === 0 && !loading && (
             <div className="px-4 py-8 text-center" style={{ color: "var(--text-faint)" }}>
               {t("search.noResults")} &ldquo;{query}&rdquo;
