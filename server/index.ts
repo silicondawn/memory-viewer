@@ -356,29 +356,132 @@ function qmdUriToRelPath(uri: string): string {
   return match ? match[1] : uri;
 }
 
+// Embedding API helper
+async function getEmbedding(text: string): Promise<number[] | null> {
+  const { apiUrl, apiKey, model } = appSettings.embedding;
+  if (!apiUrl || !apiKey) return null;
+  try {
+    const resp = await fetch(apiUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({ input: text, model: model || "text-embedding-3-small" }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data: any = await resp.json();
+    return data.data?.[0]?.embedding ?? null;
+  } catch {
+    return null;
+  }
+}
+
+function cosineSim(a: number[], b: number[]): number {
+  let dot = 0, na = 0, nb = 0;
+  for (let i = 0; i < a.length; i++) {
+    dot += a[i] * b[i];
+    na += a[i] * a[i];
+    nb += b[i] * b[i];
+  }
+  return dot / (Math.sqrt(na) * Math.sqrt(nb) + 1e-10);
+}
+
+// Simple in-memory embedding cache: path → { mtime, embedding }
+const embeddingCache = new Map<string, { mtime: number; embedding: number[] }>();
+
+async function getFileEmbeddings(files: string[]): Promise<Map<string, number[]>> {
+  const result = new Map<string, number[]>();
+  const toEmbed: string[] = [];
+
+  for (const relPath of files) {
+    const full = path.join(WORKSPACE, relPath);
+    try {
+      const stat = fs.statSync(full);
+      const cached = embeddingCache.get(relPath);
+      if (cached && cached.mtime === stat.mtimeMs) {
+        result.set(relPath, cached.embedding);
+      } else {
+        toEmbed.push(relPath);
+      }
+    } catch { /* skip */ }
+  }
+
+  // Batch embed uncached files (max 10 at a time to stay responsive)
+  for (const relPath of toEmbed.slice(0, 20)) {
+    const full = path.join(WORKSPACE, relPath);
+    try {
+      const content = fs.readFileSync(full, "utf-8").substring(0, 2000); // first 2000 chars
+      const emb = await getEmbedding(content);
+      if (emb) {
+        const stat = fs.statSync(full);
+        embeddingCache.set(relPath, { mtime: stat.mtimeMs, embedding: emb });
+        result.set(relPath, emb);
+      }
+    } catch { /* skip */ }
+  }
+
+  return result;
+}
+
 app.get("/api/semantic-search", async (c) => {
   const q = (c.req.query("q") || "").trim();
   const mode = c.req.query("mode") || "bm25"; // bm25 | vector
   if (!q || q.length < 2) return c.json([]);
 
-  const cmd = mode === "vector" ? "vsearch" : "search";
-  try {
-    const { stdout } = await exec(
-      `export PATH="$HOME/.bun/bin:$PATH" && qmd ${cmd} ${JSON.stringify(q)} -n 10 --json`,
-      { timeout: 20000 }
-    );
-    const raw: { docid: string; score: number; file: string; title: string; snippet: string }[] = JSON.parse(stdout);
-    const results = raw.map((r) => ({
-      path: qmdUriToRelPath(r.file),
-      title: r.title,
-      snippet: r.snippet.replace(/@@ [^@]+ @@[^\n]*\n?/, "").substring(0, 300),
-      score: Math.round(r.score * 100),
-    }));
-    return c.json(results);
-  } catch (e: any) {
-    console.error("Semantic search error:", e.message);
-    return c.json([]);
+  // BM25 mode: use QMD
+  if (mode === "bm25" && qmdAvailable) {
+    try {
+      const { stdout } = await exec(
+        `export PATH="$HOME/.bun/bin:$PATH" && qmd search ${JSON.stringify(q)} -n 10 --json`,
+        { timeout: 20000 }
+      );
+      const raw: { docid: string; score: number; file: string; title: string; snippet: string }[] = JSON.parse(stdout);
+      return c.json(raw.map((r) => ({
+        path: qmdUriToRelPath(r.file),
+        title: r.title,
+        snippet: r.snippet.replace(/@@ [^@]+ @@[^\n]*\n?/, "").substring(0, 300),
+        score: Math.round(r.score * 100),
+      })));
+    } catch (e: any) {
+      console.error("BM25 search error:", e.message);
+      return c.json([]);
+    }
   }
+
+  // Vector mode: use embedding API
+  if (mode === "vector" && appSettings.embedding.enabled && appSettings.embedding.apiKey) {
+    try {
+      const queryEmb = await getEmbedding(q);
+      if (!queryEmb) return c.json([]);
+
+      const files = collectMdFiles(WORKSPACE);
+      const fileEmbs = await getFileEmbeddings(files);
+
+      const scored: { path: string; score: number; snippet: string; title: string }[] = [];
+      for (const [filePath, emb] of fileEmbs) {
+        const sim = cosineSim(queryEmb, emb);
+        const full = path.join(WORKSPACE, filePath);
+        let content = "";
+        try { content = fs.readFileSync(full, "utf-8"); } catch { continue; }
+        const firstLine = content.split("\n").find(l => l.startsWith("#"))?.replace(/^#+\s*/, "") || filePath;
+        scored.push({
+          path: filePath,
+          score: Math.round(sim * 100),
+          title: firstLine,
+          snippet: content.substring(0, 300).replace(/\n/g, " "),
+        });
+      }
+
+      scored.sort((a, b) => b.score - a.score);
+      return c.json(scored.slice(0, 10));
+    } catch (e: any) {
+      console.error("Vector search error:", e.message);
+      return c.json([]);
+    }
+  }
+
+  return c.json([]);
 });
 
 app.get("/api/recent", (c) => {
