@@ -225,21 +225,12 @@ app.get("/api/search", (c) => {
 });
 
 // QMD collection prefix → workspace-relative path mapping
-const QMD_PREFIX_MAP: Record<string, string> = {
-  "clawd-memory": "memory",
-  "clawd-root": "",
-  "clawd-skills": "skills",
-  "openclaw-skills": "../.openclaw/skills",
-};
-
 function qmdUriToRelPath(uri: string): string {
   // qmd://clawd-memory/memory/survival.md → memory/survival.md
-  const match = uri.match(/^qmd:\/\/([^/]+)\/(.+)$/);
-  if (!match) return uri;
-  const [, collection, rest] = match;
-  const prefix = QMD_PREFIX_MAP[collection];
-  if (prefix === undefined) return rest;
-  return prefix ? `${prefix}/${rest}` : rest;
+  // qmd://clawd-root/MEMORY.md → MEMORY.md
+  // All collections index from workspace root, so just strip the qmd://collection/ prefix
+  const match = uri.match(/^qmd:\/\/[^/]+\/(.+)$/);
+  return match ? match[1] : uri;
 }
 
 app.get("/api/semantic-search", async (c) => {
