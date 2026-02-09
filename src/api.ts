@@ -195,3 +195,18 @@ export async function fetchAgentStatus(): Promise<AgentStatus> {
   const r = await fetch(`${_baseUrl}/api/agent/status`);
   return r.json();
 }
+
+export interface Capabilities {
+  qmd: boolean;
+  qmdBm25: boolean;
+  qmdVector: boolean;
+}
+
+export async function fetchCapabilities(): Promise<Capabilities> {
+  try {
+    const r = await fetch(`${_baseUrl}/api/capabilities`);
+    return r.json();
+  } catch {
+    return { qmd: false, qmdBm25: false, qmdVector: false };
+  }
+}

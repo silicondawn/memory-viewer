@@ -225,6 +225,37 @@ app.get("/api/search", (c) => {
 });
 
 // QMD collection prefix → workspace-relative path mapping
+// QMD availability detection — cached at startup
+let qmdAvailable: boolean | null = null;
+let qmdHasVectors = false;
+
+async function detectQmd(): Promise<void> {
+  try {
+    const { stdout } = await exec(
+      `export PATH="$HOME/.bun/bin:$PATH" && qmd status 2>/dev/null`,
+      { timeout: 5000 }
+    );
+    qmdAvailable = stdout.includes("Documents");
+    qmdHasVectors = /Vectors:\s*[1-9]/.test(stdout);
+    console.log(`🔍 QMD: ${qmdAvailable ? "available" : "not found"}${qmdHasVectors ? " (vectors ready)" : ""}`);
+  } catch {
+    qmdAvailable = false;
+    qmdHasVectors = false;
+    console.log("🔍 QMD: not installed");
+  }
+}
+
+// Run detection on startup
+detectQmd();
+
+app.get("/api/capabilities", (c) => {
+  return c.json({
+    qmd: qmdAvailable === true,
+    qmdBm25: qmdAvailable === true,
+    qmdVector: qmdHasVectors,
+  });
+});
+
 function qmdUriToRelPath(uri: string): string {
   // qmd://clawd-memory/memory/survival.md → memory/survival.md
   // qmd://clawd-root/MEMORY.md → MEMORY.md

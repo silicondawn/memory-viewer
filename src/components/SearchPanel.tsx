@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { searchFiles, semanticSearch, type SearchResult, type SemanticResult } from "../api";
-import { MagnifyingGlass, FileText, TextAa, Brain, Atom } from "@phosphor-icons/react";
+import { searchFiles, semanticSearch, fetchCapabilities, type SearchResult, type SemanticResult } from "../api";
+import { MagnifyingGlass, FileText, TextAa, Brain } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
 type SearchMode = "text" | "bm25" | "vector";
@@ -17,11 +17,17 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
   const [textResults, setTextResults] = useState<SearchResult[]>([]);
   const [semanticResults, setSemanticResults] = useState<SemanticResult[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasBm25, setHasBm25] = useState(false);
+  const [hasVector, setHasVector] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     inputRef.current?.focus();
+    fetchCapabilities().then((cap) => {
+      setHasBm25(cap.qmdBm25);
+      setHasVector(cap.qmdVector);
+    });
   }, []);
 
   useEffect(() => {
@@ -81,8 +87,8 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
 
   const modeButtons: { key: SearchMode; icon: typeof TextAa; label: string }[] = [
     { key: "text", icon: TextAa, label: t("search.modeText") },
-    { key: "bm25", icon: MagnifyingGlass, label: "BM25" },
-    { key: "vector", icon: Brain, label: t("search.modeSemantic") },
+    ...(hasBm25 ? [{ key: "bm25" as SearchMode, icon: MagnifyingGlass, label: "BM25" }] : []),
+    ...(hasVector ? [{ key: "vector" as SearchMode, icon: Brain, label: t("search.modeSemantic") }] : []),
   ];
 
   return (
@@ -115,8 +121,8 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
           </kbd>
         </div>
 
-        {/* Mode toggle */}
-        <div className="flex items-center gap-1 px-4 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+        {/* Mode toggle — only show if QMD is available */}
+        {(hasBm25 || hasVector) && <div className="flex items-center gap-1 px-4 py-2 border-b" style={{ borderColor: "var(--border)" }}>
           {modeButtons.map(({ key, icon: Icon, label }) => (
             <button
               key={key}
@@ -132,7 +138,7 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
               {label}
             </button>
           ))}
-        </div>
+        </div>}
 
         {/* Results */}
         <div className="max-h-[50vh] overflow-y-auto">
