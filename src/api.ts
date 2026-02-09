@@ -103,6 +103,18 @@ export async function searchFiles(query: string): Promise<SearchResult[]> {
   return r.json();
 }
 
+export interface SemanticResult {
+  path: string;
+  title: string;
+  snippet: string;
+  score: number;
+}
+
+export async function semanticSearch(query: string, mode: "bm25" | "vector" = "bm25"): Promise<SemanticResult[]> {
+  const r = await fetch(`${_baseUrl}/api/semantic-search?q=${encodeURIComponent(query)}&mode=${mode}`);
+  return r.json();
+}
+
 export interface RecentFile {
   path: string;
   mtime: number;

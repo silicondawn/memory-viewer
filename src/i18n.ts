@@ -90,6 +90,10 @@ const dict: Record<string, Record<Locale, string>> = {
   "search.noResults": { en: "No results found for", zh: "未找到相关结果：" },
   "search.files": { en: "files", zh: "个文件" },
   "search.matches": { en: "matches", zh: "个匹配" },
+  "search.results": { en: "results", zh: "个结果" },
+  "search.modeText": { en: "Text", zh: "文本" },
+  "search.modeSemantic": { en: "Semantic", zh: "语义" },
+  "search.relevance": { en: "relevance", zh: "相关度" },
 
   // Connections
   "connections.title": { en: "Connections", zh: "连接管理" },

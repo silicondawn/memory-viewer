@@ -224,6 +224,49 @@ app.get("/api/search", (c) => {
   return c.json(results);
 });
 
+// QMD collection prefix → workspace-relative path mapping
+const QMD_PREFIX_MAP: Record<string, string> = {
+  "clawd-memory": "memory",
+  "clawd-root": "",
+  "clawd-skills": "skills",
+  "openclaw-skills": "../.openclaw/skills",
+};
+
+function qmdUriToRelPath(uri: string): string {
+  // qmd://clawd-memory/memory/survival.md → memory/survival.md
+  const match = uri.match(/^qmd:\/\/([^/]+)\/(.+)$/);
+  if (!match) return uri;
+  const [, collection, rest] = match;
+  const prefix = QMD_PREFIX_MAP[collection];
+  if (prefix === undefined) return rest;
+  return prefix ? `${prefix}/${rest}` : rest;
+}
+
+app.get("/api/semantic-search", async (c) => {
+  const q = (c.req.query("q") || "").trim();
+  const mode = c.req.query("mode") || "bm25"; // bm25 | vector
+  if (!q || q.length < 2) return c.json([]);
+
+  const cmd = mode === "vector" ? "vsearch" : "search";
+  try {
+    const { stdout } = await exec(
+      `export PATH="$HOME/.bun/bin:$PATH" && qmd ${cmd} ${JSON.stringify(q)} -n 10 --json`,
+      { timeout: 20000 }
+    );
+    const raw: { docid: string; score: number; file: string; title: string; snippet: string }[] = JSON.parse(stdout);
+    const results = raw.map((r) => ({
+      path: qmdUriToRelPath(r.file),
+      title: r.title,
+      snippet: r.snippet.replace(/@@ [^@]+ @@[^\n]*\n?/, "").substring(0, 300),
+      score: Math.round(r.score * 100),
+    }));
+    return c.json(results);
+  } catch (e: any) {
+    console.error("Semantic search error:", e.message);
+    return c.json([]);
+  }
+});
+
 app.get("/api/recent", (c) => {
   const files = collectMdFiles(WORKSPACE);
   const withStats = files.map((relPath) => {

@@ -1,7 +1,9 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { searchFiles, type SearchResult } from "../api";
-import { MagnifyingGlass, FileText } from "@phosphor-icons/react";
+import { searchFiles, semanticSearch, type SearchResult, type SemanticResult } from "../api";
+import { MagnifyingGlass, FileText, TextAa, Brain, Atom } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
+
+type SearchMode = "text" | "bm25" | "vector";
 
 interface SearchPanelProps {
   onSelect: (path: string) => void;
@@ -11,7 +13,9 @@ interface SearchPanelProps {
 export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
   const { t } = useLocale();
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState<SearchResult[]>([]);
+  const [mode, setMode] = useState<SearchMode>("text");
+  const [textResults, setTextResults] = useState<SearchResult[]>([]);
+  const [semanticResults, setSemanticResults] = useState<SemanticResult[]>([]);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const timerRef = useRef<ReturnType<typeof setTimeout>>();
@@ -28,22 +32,42 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
     return () => window.removeEventListener("keydown", handler);
   }, [onClose]);
 
-  const doSearch = useCallback((q: string) => {
+  const doSearch = useCallback((q: string, m: SearchMode) => {
     if (q.length < 2) {
-      setResults([]);
+      setTextResults([]);
+      setSemanticResults([]);
       return;
     }
     setLoading(true);
-    searchFiles(q)
-      .then(setResults)
-      .catch(() => setResults([]))
-      .finally(() => setLoading(false));
+    if (m === "text") {
+      searchFiles(q)
+        .then(setTextResults)
+        .catch(() => setTextResults([]))
+        .finally(() => setLoading(false));
+    } else {
+      semanticSearch(q, m)
+        .then(setSemanticResults)
+        .catch(() => setSemanticResults([]))
+        .finally(() => setLoading(false));
+    }
   }, []);
 
   const handleInput = (val: string) => {
     setQuery(val);
     clearTimeout(timerRef.current);
-    timerRef.current = setTimeout(() => doSearch(val), 300);
+    const delay = mode === "text" ? 300 : 500;
+    timerRef.current = setTimeout(() => doSearch(val, mode), delay);
+  };
+
+  const handleModeChange = (m: SearchMode) => {
+    setMode(m);
+    setTextResults([]);
+    setSemanticResults([]);
+    if (query.length >= 2) {
+      setLoading(true);
+      const delay = m === "text" ? 0 : 100;
+      setTimeout(() => doSearch(query, m), delay);
+    }
   };
 
   const handleSelect = (path: string) => {
@@ -51,7 +75,15 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
     onClose();
   };
 
-  const totalMatches = results.reduce((s, r) => s + r.matches.length, 0);
+  const totalMatches = mode === "text"
+    ? textResults.reduce((s, r) => s + r.matches.length, 0)
+    : semanticResults.length;
+
+  const modeButtons: { key: SearchMode; icon: typeof TextAa; label: string }[] = [
+    { key: "text", icon: TextAa, label: t("search.modeText") },
+    { key: "bm25", icon: MagnifyingGlass, label: "BM25" },
+    { key: "vector", icon: Brain, label: t("search.modeSemantic") },
+  ];
 
   return (
     <div className="fixed inset-0 z-50 flex items-start justify-center pt-[15vh] bg-black/60 backdrop-blur-sm" onClick={onClose}>
@@ -80,14 +112,35 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
           </kbd>
         </div>
 
+        {/* Mode toggle */}
+        <div className="flex items-center gap-1 px-4 py-2 border-b" style={{ borderColor: "var(--border)" }}>
+          {modeButtons.map(({ key, icon: Icon, label }) => (
+            <button
+              key={key}
+              onClick={() => handleModeChange(key)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium transition-colors"
+              style={{
+                background: mode === key ? "var(--accent-bg, rgba(59,130,246,0.15))" : "transparent",
+                color: mode === key ? "var(--accent, #3b82f6)" : "var(--text-faint)",
+                border: mode === key ? "1px solid var(--accent, #3b82f6)" : "1px solid transparent",
+              }}
+            >
+              <Icon size={14} weight={mode === key ? "bold" : "regular"} />
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Results */}
         <div className="max-h-[50vh] overflow-y-auto">
-          {query.length >= 2 && results.length === 0 && !loading && (
+          {query.length >= 2 && totalMatches === 0 && !loading && (
             <div className="px-4 py-8 text-center" style={{ color: "var(--text-faint)" }}>
               {t("search.noResults")} &ldquo;{query}&rdquo;
             </div>
           )}
-          {results.map((r) => (
+
+          {/* Text search results */}
+          {mode === "text" && textResults.map((r) => (
             <button
               key={r.path}
               onClick={() => handleSelect(r.path)}
@@ -107,12 +160,50 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
               ))}
             </button>
           ))}
+
+          {/* Semantic search results */}
+          {mode !== "text" && semanticResults.map((r, idx) => (
+            <button
+              key={`${r.path}-${idx}`}
+              onClick={() => handleSelect(r.path)}
+              className="w-full text-left px-4 py-3 transition-colors border-b last:border-0"
+              style={{ borderColor: "var(--border-light)" }}
+              onMouseEnter={(e) => e.currentTarget.style.background = "var(--bg-hover)"}
+              onMouseLeave={(e) => e.currentTarget.style.background = "transparent"}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="text-sm font-medium text-blue-400">
+                  <FileText className="w-3.5 h-3.5 inline-block mr-1" />{r.path}
+                </div>
+                <span
+                  className="text-xs px-1.5 py-0.5 rounded"
+                  style={{
+                    background: r.score >= 50 ? "rgba(34,197,94,0.15)" : "rgba(234,179,8,0.15)",
+                    color: r.score >= 50 ? "#22c55e" : "#eab308",
+                  }}
+                >
+                  {r.score}% {t("search.relevance")}
+                </span>
+              </div>
+              {r.title && (
+                <div className="text-xs font-medium mb-0.5" style={{ color: "var(--text-secondary)" }}>
+                  {r.title}
+                </div>
+              )}
+              <div className="text-xs line-clamp-2 pl-4" style={{ color: "var(--text-muted)" }}>
+                {r.snippet}
+              </div>
+            </button>
+          ))}
         </div>
 
         {/* Footer */}
-        {results.length > 0 && (
+        {totalMatches > 0 && (
           <div className="px-4 py-2 border-t text-xs" style={{ borderColor: "var(--border)", color: "var(--text-faint)" }}>
-            {results.length} {t("search.files")} · {totalMatches} {t("search.matches")}
+            {mode === "text"
+              ? `${textResults.length} ${t("search.files")} · ${totalMatches} ${t("search.matches")}`
+              : `${semanticResults.length} ${t("search.results")} · ${mode === "vector" ? "🧠" : "📊"} ${mode.toUpperCase()}`
+            }
           </div>
         )}
       </div>
