@@ -332,8 +332,8 @@ export default function App() {
               onClick={goHome}
               className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
               style={{
-                color: view === "dashboard" && !activeFile ? "var(--link)" : "var(--text-secondary)",
-                background: view === "dashboard" && !activeFile ? "var(--bg-active)" : undefined,
+                color: view === "dashboard" ? "var(--link)" : "var(--text-secondary)",
+                background: view === "dashboard" ? "var(--bg-active)" : undefined,
               }}
             >
               <SquaresFour className="w-4 h-4 text-blue-400" />
