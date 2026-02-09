@@ -22,6 +22,41 @@ import type { ServerWebSocket } from "@hono/node-ws";
 const exec = util.promisify(execCallback);
 
 // ---------------------------------------------------------------------------
+// Settings
+// ---------------------------------------------------------------------------
+const SETTINGS_DIR = path.join(os.homedir(), ".config", "memory-viewer");
+const SETTINGS_FILE = path.join(SETTINGS_DIR, "settings.json");
+
+interface AppSettings {
+  embedding: {
+    enabled: boolean;
+    apiUrl: string;
+    apiKey: string;
+    model: string;
+  };
+}
+
+const DEFAULT_SETTINGS: AppSettings = {
+  embedding: { enabled: false, apiUrl: "", apiKey: "", model: "" },
+};
+
+function loadSettings(): AppSettings {
+  try {
+    const raw = fs.readFileSync(SETTINGS_FILE, "utf-8");
+    return { ...DEFAULT_SETTINGS, ...JSON.parse(raw) };
+  } catch {
+    return { ...DEFAULT_SETTINGS };
+  }
+}
+
+function saveSettings(s: AppSettings): void {
+  fs.mkdirSync(SETTINGS_DIR, { recursive: true });
+  fs.writeFileSync(SETTINGS_FILE, JSON.stringify(s, null, 2));
+}
+
+let appSettings = loadSettings();
+
+// ---------------------------------------------------------------------------
 // Config
 // ---------------------------------------------------------------------------
 const PORT = Number(process.env.PORT) || 3001;
@@ -249,11 +284,68 @@ async function detectQmd(): Promise<void> {
 detectQmd();
 
 app.get("/api/capabilities", (c) => {
+  const embeddingReady = appSettings.embedding.enabled && !!appSettings.embedding.apiUrl && !!appSettings.embedding.apiKey;
   return c.json({
     qmd: qmdAvailable === true,
     qmdBm25: qmdAvailable === true,
-    qmdVector: qmdHasVectors,
+    qmdVector: qmdHasVectors || embeddingReady,
+    embeddingApi: embeddingReady,
   });
+});
+
+// Settings API
+app.get("/api/settings", (c) => {
+  return c.json({
+    embedding: {
+      enabled: appSettings.embedding.enabled,
+      apiUrl: appSettings.embedding.apiUrl,
+      apiKeySet: !!appSettings.embedding.apiKey,
+      model: appSettings.embedding.model,
+    },
+  });
+});
+
+app.put("/api/settings", async (c) => {
+  const body = await c.req.json();
+  if (body.embedding) {
+    appSettings.embedding.enabled = body.embedding.enabled ?? appSettings.embedding.enabled;
+    appSettings.embedding.apiUrl = body.embedding.apiUrl ?? appSettings.embedding.apiUrl;
+    appSettings.embedding.model = body.embedding.model ?? appSettings.embedding.model;
+    if (body.embedding.apiKey) {
+      appSettings.embedding.apiKey = body.embedding.apiKey;
+    }
+  }
+  saveSettings(appSettings);
+  return c.json({ ok: true });
+});
+
+app.post("/api/settings/test-embedding", async (c) => {
+  const { apiUrl, apiKey, model } = await c.req.json();
+  const url = apiUrl || appSettings.embedding.apiUrl;
+  const key = apiKey || appSettings.embedding.apiKey;
+  const mdl = model || appSettings.embedding.model || "text-embedding-3-small";
+
+  if (!url) return c.json({ ok: false, message: "API URL is required" });
+
+  try {
+    const resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(key ? { Authorization: `Bearer ${key}` } : {}),
+      },
+      body: JSON.stringify({ input: "test", model: mdl }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const data: any = await resp.json();
+    if (data.data?.[0]?.embedding) {
+      const dim = data.data[0].embedding.length;
+      return c.json({ ok: true, message: `✅ ${dim}维向量` });
+    }
+    return c.json({ ok: false, message: data.error?.message || "Unexpected response" });
+  } catch (e: any) {
+    return c.json({ ok: false, message: e.message || "Connection failed" });
+  }
 });
 
 function qmdUriToRelPath(uri: string): string {

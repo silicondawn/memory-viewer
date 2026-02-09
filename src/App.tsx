@@ -13,6 +13,7 @@ import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
 import { useConnections } from "./hooks/useConnections";
 import { AgentStatusPage } from "./components/AgentStatus";
+import { SettingsPage } from "./components/SettingsPage";
 import { BookOpen, X, List, MagnifyingGlass, Sun, Moon, Eye, EyeSlash, Translate, ShareNetwork, CaretDown, CaretUp, ArrowsClockwise, Gear, Monitor, PuzzlePiece, CaretRight, Calendar, SquaresFour, Power, Clock } from "@phosphor-icons/react";
 import { useSyncExternalStore } from "react";
 import { pluginRegistry } from "./plugins/registry";
@@ -25,7 +26,7 @@ export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [activeFile, setActiveFile] = useState("");
-  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status" | "skills" | "timeline">("dashboard");
+  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status" | "skills" | "timeline" | "settings">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -111,6 +112,7 @@ export default function App() {
       if (hash === "#/changelog") { setView("changelog"); return; }
       if (hash === "#/skills") { setView("skills"); return; }
       if (hash === "#/timeline") { setView("timeline"); return; }
+      if (hash === "#/settings") { setView("settings"); return; }
     };
     readHash();
     window.addEventListener("popstate", readHash);
@@ -351,6 +353,17 @@ export default function App() {
                 <span className="ml-auto text-[10px] opacity-50">{skills.length}</span>
               </button>
             )}
+            <button
+              onClick={() => { setView("settings"); setSidebarOpen(false); window.history.pushState(null, "", "#/settings"); }}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+              style={{
+                color: view === "settings" ? "var(--link)" : "var(--text-secondary)",
+                background: view === "settings" ? "var(--bg-active)" : undefined,
+              }}
+            >
+              <Gear className="w-4 h-4 text-gray-400" />
+              {t("settings.title")}
+            </button>
           </div>
         </div>
 
@@ -426,7 +439,7 @@ export default function App() {
             <List className="w-6 h-6" />
           </button>
           <span className="text-sm font-medium truncate">
-            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : view === "agent-status" ? t("sidebar.agentConfig") : view === "timeline" ? t("timeline.title") : t("dashboard.title")}
+            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : view === "agent-status" ? t("sidebar.agentConfig") : view === "timeline" ? t("timeline.title") : view === "settings" ? t("settings.title") : t("dashboard.title")}
           </span>
           <button onClick={() => window.location.reload()} className="ml-auto p-1" style={{ color: "var(--text-muted)" }} title="Refresh">
             <ArrowsClockwise className="w-5 h-5" />
@@ -466,6 +479,8 @@ export default function App() {
             <div className="h-full overflow-auto">
               <Timeline onOpenFile={openFile} />
             </div>
+          ) : view === "settings" ? (
+            <SettingsPage onBack={goHome} />
           ) : view === "dashboard" ? (
             <div className="h-full overflow-auto">
               <Dashboard onOpenFile={openFile} />
