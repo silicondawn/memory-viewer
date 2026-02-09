@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { type BotConnection } from "../hooks/useConnections";
-import { Network, Plus, Trash2, Edit3, Check, X, RefreshCw } from "lucide-react";
+import { ShareNetwork, Plus, Trash, PencilSimple, Check, X, ArrowsClockwise } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 import { BootstrapWizard } from "./BootstrapWizard";
 
@@ -88,11 +88,11 @@ export function Connections({ connections, statuses, activeId, onAdd, onUpdate, 
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-          <Network className="w-7 h-7 text-blue-400" /> {t("connections.title")}
+          <ShareNetwork className="w-7 h-7 text-blue-400" /> {t("connections.title")}
         </h1>
         <div className="flex gap-2">
           <button onClick={onRefresh} className="btn-secondary text-sm flex items-center gap-1">
-            <RefreshCw className="w-3.5 h-3.5" /> {t("connections.refresh")}
+            <ArrowsClockwise className="w-3.5 h-3.5" /> {t("connections.refresh")}
           </button>
           <button onClick={startAdd} className="btn-secondary text-sm flex items-center gap-1">
             <Plus className="w-3.5 h-3.5" /> {t("connections.add")}
@@ -246,14 +246,14 @@ export function Connections({ connections, statuses, activeId, onAdd, onUpdate, 
                       className="p-1 rounded hover:opacity-80"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      <Edit3 className="w-3.5 h-3.5" />
+                      <PencilSimple className="w-3.5 h-3.5" />
                     </button>
                     <button
                       onClick={(e) => { e.stopPropagation(); onRemove(conn.id); }}
                       className="p-1 rounded hover:opacity-80"
                       style={{ color: "var(--text-muted)" }}
                     >
-                      <Trash2 className="w-3.5 h-3.5" />
+                      <Trash className="w-3.5 h-3.5" />
                     </button>
                   </div>
                 )}

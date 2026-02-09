@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import type { FileNode } from "../api";
-import { ChevronDown, ChevronRight, Folder, FileText, Brain, Dna, Bot, User, Wrench, ListTodo, HeartPulse, IdCard, Settings, CalendarDays, Clock } from "lucide-react";
+import { CaretDown, CaretRight, Folder, FileText, Brain, Dna, Robot, User, Wrench, ListChecks, Heartbeat, IdentificationCard, Gear, Calendar, Clock } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
 /** Well-known bot config files shown in the top section */
@@ -161,8 +161,8 @@ export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
             onClick={() => toggleCollapsed("__daily_notes__")}
             className="sidebar-section-title px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1 w-full hover:opacity-80"
           >
-            {isDailyNotesCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
-            <CalendarDays className="w-3 h-3" />
+            {isDailyNotesCollapsed ? <CaretRight className="w-3 h-3" /> : <CaretDown className="w-3 h-3" />}
+            <Calendar className="w-3 h-3" />
             {t("sidebar.dailyNotes") || "Daily Notes"}
             <span className="ml-auto text-[10px] font-normal opacity-60">{dailyNotes.length}</span>
           </button>
@@ -179,7 +179,7 @@ export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
                 style={{ paddingLeft: "20px" }}
               >
                 <span className="opacity-70 shrink-0">
-                  {isToday ? <CalendarDays className="w-3.5 h-3.5 text-green-400" /> :
+                  {isToday ? <Calendar className="w-3.5 h-3.5 text-green-400" /> :
                    isYesterday ? <Clock className="w-3.5 h-3.5 text-blue-400" /> :
                    <FileText className="w-3.5 h-3.5 text-gray-500" />}
                 </span>
@@ -230,7 +230,7 @@ function TreeNode({ node, activeFile, onSelect, depth, collapsed, onToggle }: {
           className="sidebar-item flex items-center gap-1.5 w-full py-1.5 rounded-md"
           style={{ paddingLeft: `${indent}px` }}
         >
-          {!isCollapsed ? <ChevronDown className="w-3 h-3 opacity-60 shrink-0" /> : <ChevronRight className="w-3 h-3 opacity-60 shrink-0" />}
+          {!isCollapsed ? <CaretDown className="w-3 h-3 opacity-60 shrink-0" /> : <CaretRight className="w-3 h-3 opacity-60 shrink-0" />}
           <Folder className={`w-3.5 h-3.5 shrink-0 ${!isCollapsed ? "text-amber-400" : "text-amber-400/60"}`} />
           <span className="truncate">{node.name}</span>
           {node.children && (
@@ -260,13 +260,13 @@ function TreeNode({ node, activeFile, onSelect, depth, collapsed, onToggle }: {
       <span className="opacity-70 shrink-0">
         {node.name === "MEMORY.md" ? <Brain className="w-3.5 h-3.5 text-purple-400" /> :
          node.name === "SOUL.md" ? <Dna className="w-3.5 h-3.5 text-emerald-400" /> :
-         node.name === "AGENTS.md" ? <Bot className="w-3.5 h-3.5 text-blue-400" /> :
+         node.name === "AGENTS.md" ? <Robot className="w-3.5 h-3.5 text-blue-400" /> :
          node.name === "USER.md" ? <User className="w-3.5 h-3.5 text-amber-400" /> :
          node.name === "TOOLS.md" ? <Wrench className="w-3.5 h-3.5 text-gray-400" /> :
-         node.name === "TODO.md" ? <ListTodo className="w-3.5 h-3.5 text-orange-400" /> :
-         node.name === "HEARTBEAT.md" ? <HeartPulse className="w-3.5 h-3.5 text-red-400" /> :
-         node.name === "IDENTITY.md" ? <IdCard className="w-3.5 h-3.5 text-cyan-400" /> :
-         node.name === "BOOTSTRAP.md" ? <Settings className="w-3.5 h-3.5 text-gray-400" /> :
+         node.name === "TODO.md" ? <ListChecks className="w-3.5 h-3.5 text-orange-400" /> :
+         node.name === "HEARTBEAT.md" ? <Heartbeat className="w-3.5 h-3.5 text-red-400" /> :
+         node.name === "IDENTITY.md" ? <IdentificationCard className="w-3.5 h-3.5 text-cyan-400" /> :
+         node.name === "BOOTSTRAP.md" ? <Gear className="w-3.5 h-3.5 text-gray-400" /> :
          <FileText className="w-3.5 h-3.5 text-gray-500" />}
       </span>
       <span className="truncate">{node.name}</span>

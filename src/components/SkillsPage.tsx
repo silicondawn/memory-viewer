@@ -1,4 +1,4 @@
-import { Puzzle, ExternalLink, FileText } from "lucide-react";
+import { PuzzlePiece, ArrowSquareOut, FileText } from "@phosphor-icons/react";
 import type { SkillInfo } from "../api";
 import { useLocale } from "../hooks/useLocale";
 
@@ -16,7 +16,7 @@ export function SkillsPage({ skills, onOpenFile }: SkillsPageProps) {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold mb-2 flex items-center gap-3">
-            <Puzzle className="w-7 h-7 text-purple-400" />
+            <PuzzlePiece className="w-7 h-7 text-purple-400" />
             {t("skills.title") || "Skills"}
           </h1>
           <p className="text-sm" style={{ color: "var(--text-secondary)" }}>
@@ -40,7 +40,7 @@ export function SkillsPage({ skills, onOpenFile }: SkillsPageProps) {
               >
                 <div className="flex items-start gap-3">
                   <div className="p-2 rounded-lg bg-purple-500/10 text-purple-400 shrink-0">
-                    <Puzzle className="w-5 h-5" />
+                    <PuzzlePiece className="w-5 h-5" />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-medium mb-1 group-hover:text-purple-400 transition-colors truncate">

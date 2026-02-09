@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { searchFiles, type SearchResult } from "../api";
-import { Search, FileText } from "lucide-react";
+import { MagnifyingGlass, FileText } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
 interface SearchPanelProps {
@@ -62,7 +62,7 @@ export function SearchPanel({ onSelect, onClose }: SearchPanelProps) {
       >
         {/* Search input */}
         <div className="flex items-center gap-3 px-4 py-3 border-b" style={{ borderColor: "var(--border)" }}>
-          <Search className="w-5 h-5 shrink-0" style={{ color: "var(--text-faint)" }} />
+          <MagnifyingGlass className="w-5 h-5 shrink-0" style={{ color: "var(--text-faint)" }} />
           <input
             ref={inputRef}
             type="text"

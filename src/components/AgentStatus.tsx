@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { fetchAgentStatus, type AgentStatus } from "../api";
 import { createHighlighter } from "shiki";
-import { Activity, Server, Shield, Cpu, Clock, ChevronDown, ChevronRight, CheckCircle, XCircle, HeartPulse, Zap } from "lucide-react";
+import { Pulse, HardDrives, Shield, Cpu, Clock, CaretDown, CaretRight, CheckCircle, XCircle, Heartbeat, Lightning } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
 function StatusCard({ title, icon: Icon, children, className = "" }: any) {
@@ -143,7 +143,7 @@ export function AgentStatusPage() {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-3xl font-bold mb-2 flex items-center gap-3">
-            <Activity className="w-8 h-8 text-blue-500" />
+            <Pulse className="w-8 h-8 text-blue-500" />
             {t("agent.title")}
           </h1>
           <div className="flex items-center gap-3 text-sm pl-11" style={{ color: "var(--text-secondary)" }}>
@@ -155,7 +155,7 @@ export function AgentStatusPage() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           
           {/* Gateway Card */}
-          <StatusCard title={t("agent.gateway")} icon={Server}>
+          <StatusCard title={t("agent.gateway")} icon={HardDrives}>
             <div className="flex items-center gap-3 mb-6 p-3 rounded-lg bg-black/20">
               <div className={`w-3 h-3 rounded-full ${isGwRunning ? "bg-green-500 shadow-[0_0_10px_#22c55e]" : "bg-red-500"}`} />
               <span className="font-medium text-lg">{isGwRunning ? t("agent.running") : t("agent.stopped")}</span>
@@ -178,13 +178,13 @@ export function AgentStatusPage() {
             </div>
             {/* If we had more model stats they would go here */}
             <div className="flex items-center gap-2 mt-4 text-sm" style={{ color: "var(--text-secondary)" }}>
-              <Zap className="w-4 h-4 text-yellow-400" />
+              <Lightning className="w-4 h-4 text-yellow-400" />
               <span>{t("agent.ready")}</span>
             </div>
           </StatusCard>
 
           {/* Heartbeat Card */}
-          <StatusCard title={t("agent.heartbeat")} icon={HeartPulse}>
+          <StatusCard title={t("agent.heartbeat")} icon={Heartbeat}>
              <div className="flex flex-col items-center justify-center py-4">
                {hb.lastRun ? (
                  <>
@@ -216,7 +216,7 @@ export function AgentStatusPage() {
               <Shield className="w-5 h-5 text-purple-400" />
               <span className="font-semibold">{t("agent.config")}</span>
             </div>
-            {configExpanded ? <ChevronDown className="w-5 h-5" /> : <ChevronRight className="w-5 h-5" />}
+            {configExpanded ? <CaretDown className="w-5 h-5" /> : <CaretRight className="w-5 h-5" />}
           </button>
           
           {configExpanded && (

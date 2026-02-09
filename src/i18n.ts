@@ -138,6 +138,18 @@ const dict: Record<string, Record<Locale, string>> = {
   "heatmap.more": { en: "More", zh: "多" },
   "heatmap.noData": { en: "No data", zh: "无数据" },
 
+  // Timeline
+  "sidebar.timeline": { en: "Timeline", zh: "时间线" },
+  "timeline.title": { en: "Memory Timeline", zh: "记忆时间线" },
+  "timeline.loading": { en: "Loading memories…", zh: "正在加载记忆…" },
+  "timeline.entries": { en: "entries", zh: "篇日记" },
+  "timeline.words": { en: "chars", zh: "字符" },
+  "timeline.tags": { en: "tags", zh: "标签" },
+  "timeline.filterByTag": { en: "Filter by tag:", zh: "按标签筛选：" },
+  "timeline.noResults": { en: "No entries found with this tag", zh: "未找到包含此标签的日记" },
+  "timeline.empty": { en: "No memory entries found", zh: "未找到记忆日记" },
+  "timeline.chars": { en: "chars", zh: "字" },
+
   // Months
   "month.01": { en: "Jan", zh: "1月" },
   "month.02": { en: "Feb", zh: "2月" },

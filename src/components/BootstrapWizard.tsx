@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Loader2, CheckCircle2, XCircle, Rocket, ArrowRight } from "lucide-react";
+import { SpinnerGap, CheckCircle, XCircle, Rocket, ArrowRight } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
 type Step = "checking" | "confirm" | "installing" | "verifying" | "success" | "failed";
@@ -141,7 +141,7 @@ export function BootstrapWizard({ name, gatewayUrl, token, mvPort, onComplete, o
 
       {step === "checking" && (
         <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-          <Loader2 className="w-4 h-4 animate-spin" /> {t("bootstrap.checking")}
+          <SpinnerGap className="w-4 h-4 animate-spin" /> {t("bootstrap.checking")}
         </div>
       )}
 
@@ -161,7 +161,7 @@ export function BootstrapWizard({ name, gatewayUrl, token, mvPort, onComplete, o
       {step === "installing" && (
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-            <Loader2 className="w-4 h-4 animate-spin" /> {t("bootstrap.installing")}
+            <SpinnerGap className="w-4 h-4 animate-spin" /> {t("bootstrap.installing")}
           </div>
         </div>
       )}
@@ -175,14 +175,14 @@ export function BootstrapWizard({ name, gatewayUrl, token, mvPort, onComplete, o
             </div>
           )}
           <div className="flex items-center gap-2 text-sm" style={{ color: "var(--text-secondary)" }}>
-            <Loader2 className="w-4 h-4 animate-spin" /> {t("bootstrap.verifying")}
+            <SpinnerGap className="w-4 h-4 animate-spin" /> {t("bootstrap.verifying")}
           </div>
         </div>
       )}
 
       {step === "success" && (
         <div className="flex items-center gap-2 text-sm text-green-400">
-          <CheckCircle2 className="w-4 h-4" /> {t("bootstrap.success")}
+          <CheckCircle className="w-4 h-4" /> {t("bootstrap.success")}
         </div>
       )}
 

@@ -3,7 +3,7 @@ import { fetchSystem, fetchRecent, fetchDailyStats, type SystemInfo, type Recent
 import { ContributionHeatmap } from "./ContributionHeatmap";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { LayoutDashboard, FileText, Clock, BarChart3, Zap } from "lucide-react";
+import { SquaresFour, FileText, Clock, ChartBar, Lightning } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
 function formatUptime(seconds: number): string {
@@ -66,7 +66,7 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
   return (
     <div className="max-w-4xl mx-auto p-4 sm:p-6 space-y-6">
       <h1 className="text-2xl font-bold flex items-center gap-2" style={{ color: "var(--text-primary)" }}>
-        <LayoutDashboard className="w-7 h-7 text-blue-400" /> {t("dashboard.title")}
+        <SquaresFour className="w-7 h-7 text-blue-400" /> {t("dashboard.title")}
       </h1>
 
       {/* Stats */}
@@ -116,7 +116,7 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
         {/* Memory Activity Heatmap */}
         <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
           <h2 className="text-lg font-semibold flex items-center gap-2 mb-3" style={{ color: "var(--text-primary)" }}>
-            <BarChart3 className="w-5 h-5 text-purple-400" /> {t("dashboard.memoryByMonth")}
+            <ChartBar className="w-5 h-5 text-purple-400" /> {t("dashboard.memoryByMonth")}
           </h2>
           {daily.length > 0 ? (
             <ContributionHeatmap data={daily} onOpenFile={onOpenFile} />
@@ -158,7 +158,7 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
       {/* Quick Access */}
       <section>
         <h2 className="text-sm font-semibold flex items-center gap-1.5 mb-2" style={{ color: "var(--text-muted)" }}>
-          <Zap className="w-4 h-4" /> {t("dashboard.quickAccess")}
+          <Lightning className="w-4 h-4" /> {t("dashboard.quickAccess")}
         </h2>
         <div className="flex flex-wrap gap-2">
           {PINNED_FILES.map((f) => (

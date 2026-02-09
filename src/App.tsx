@@ -7,12 +7,13 @@ import { SearchPanel } from "./components/SearchPanel";
 import { Connections } from "./components/Connections";
 import { Changelog } from "./components/Changelog";
 import { SkillsPage } from "./components/SkillsPage";
+import { Timeline } from "./components/Timeline";
 import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
 import { useConnections } from "./hooks/useConnections";
 import { AgentStatusPage } from "./components/AgentStatus";
-import { BookOpen, X, Menu, Search, Sun, Moon, Eye, EyeOff, Languages, Network, ChevronDown, ChevronUp, RefreshCw, Settings, Monitor, Puzzle, ChevronRight, CalendarDays, LayoutDashboard, Power } from "lucide-react";
+import { BookOpen, X, List, MagnifyingGlass, Sun, Moon, Eye, EyeSlash, Translate, ShareNetwork, CaretDown, CaretUp, ArrowsClockwise, Gear, Monitor, PuzzlePiece, CaretRight, Calendar, SquaresFour, Power, Clock } from "@phosphor-icons/react";
 import { useSyncExternalStore } from "react";
 import { pluginRegistry } from "./plugins/registry";
 import { useZoom } from "./hooks/useZoom";
@@ -24,7 +25,7 @@ export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [activeFile, setActiveFile] = useState("");
-  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status" | "skills">("dashboard");
+  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status" | "skills" | "timeline">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -109,6 +110,7 @@ export default function App() {
       if (hash === "#/connections") { setView("connections"); return; }
       if (hash === "#/changelog") { setView("changelog"); return; }
       if (hash === "#/skills") { setView("skills"); return; }
+      if (hash === "#/timeline") { setView("timeline"); return; }
     };
     readHash();
     window.addEventListener("popstate", readHash);
@@ -173,7 +175,7 @@ export default function App() {
                 style={{ color: "var(--text-muted)" }} 
                 title="Settings"
               >
-                <Settings className="w-4 h-4" />
+                <Gear className="w-4 h-4" />
               </button>
               {settingsOpen && (
                 <div
@@ -184,16 +186,16 @@ export default function App() {
                   {/* Quick tools */}
                   <div className="flex items-center gap-1 mb-3 pb-3 border-b" style={{ borderColor: "var(--border)" }}>
                     <button onClick={() => window.location.reload()} className="p-2 rounded-md transition-colors hover:bg-white/10 flex-1" style={{ color: "var(--text-muted)" }} title="Refresh">
-                      <RefreshCw className="w-4 h-4 mx-auto" />
+                      <ArrowsClockwise className="w-4 h-4 mx-auto" />
                     </button>
                     <button onClick={sensitive.toggle} className="p-2 rounded-md transition-colors hover:bg-white/10 flex-1" style={{ color: "var(--text-muted)" }} title={sensitive.hidden ? t("sidebar.showSensitive") : t("sidebar.hideSensitive")}>
-                      {sensitive.hidden ? <EyeOff className="w-4 h-4 mx-auto" /> : <Eye className="w-4 h-4 mx-auto" />}
+                      {sensitive.hidden ? <EyeSlash className="w-4 h-4 mx-auto" /> : <Eye className="w-4 h-4 mx-auto" />}
                     </button>
                     <button onClick={toggleTheme} className="p-2 rounded-md transition-colors hover:bg-white/10 flex-1" style={{ color: "var(--text-muted)" }} title={theme === "dark" ? t("sidebar.lightMode") : t("sidebar.darkMode")}>
                       {theme === "dark" ? <Sun className="w-4 h-4 mx-auto" /> : <Moon className="w-4 h-4 mx-auto" />}
                     </button>
                     <button onClick={toggleLocale} className="p-2 rounded-md transition-colors hover:bg-white/10 flex-1" style={{ color: "var(--text-muted)" }} title={locale === "en" ? "切换到中文" : "Switch to English"}>
-                      <Languages className="w-4 h-4 mx-auto" />
+                      <Translate className="w-4 h-4 mx-auto" />
                     </button>
                   </div>
                   {/* Zoom */}
@@ -289,7 +291,7 @@ export default function App() {
           onClick={() => setSearchOpen(true)}
           className="search-trigger mx-2 mt-2 flex items-center gap-2 px-2.5 py-1.5 rounded-md text-xs transition-colors"
         >
-          <Search className="w-3.5 h-3.5" />
+          <MagnifyingGlass className="w-3.5 h-3.5" />
           <span className="flex-1 text-left">{t("sidebar.search")}</span>
           <kbd className="text-[10px] px-1 py-0.5 rounded border opacity-60" style={{ background: "var(--bg-hover)", borderColor: "var(--border)" }}>
             ⌘K
@@ -310,8 +312,19 @@ export default function App() {
                 background: activeFile === todayFile ? "var(--bg-active)" : undefined,
               }}
             >
-              <CalendarDays className="w-4 h-4 text-green-400" />
+              <Calendar className="w-4 h-4 text-green-400" />
               {t("sidebar.today") || "Today"}
+            </button>
+            <button
+              onClick={() => { setView("timeline"); setSidebarOpen(false); window.history.pushState(null, "", "#/timeline"); }}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+              style={{
+                color: view === "timeline" ? "var(--link)" : "var(--text-secondary)",
+                background: view === "timeline" ? "var(--bg-active)" : undefined,
+              }}
+            >
+              <Clock className="w-4 h-4 text-amber-400" />
+              {t("sidebar.timeline") || "Timeline"}
             </button>
             <button
               onClick={goHome}
@@ -321,7 +334,7 @@ export default function App() {
                 background: view === "dashboard" && !activeFile ? "var(--bg-active)" : undefined,
               }}
             >
-              <LayoutDashboard className="w-4 h-4 text-blue-400" />
+              <SquaresFour className="w-4 h-4 text-blue-400" />
               {t("dashboard.title")}
             </button>
             {skills.length > 0 && (
@@ -333,7 +346,7 @@ export default function App() {
                   background: view === "skills" ? "var(--bg-active)" : undefined,
                 }}
               >
-                <Puzzle className="w-4 h-4 text-purple-400" />
+                <PuzzlePiece className="w-4 h-4 text-purple-400" />
                 {t("sidebar.skills")}
                 <span className="ml-auto text-[10px] opacity-50">{skills.length}</span>
               </button>
@@ -358,7 +371,7 @@ export default function App() {
               style={{ background: online ? "#22c55e" : "#ef4444" }}
             />
             <span className="truncate flex-1 text-left text-xs">{connState.active.name}</span>
-            {botSelectorOpen ? <ChevronDown className="w-3 h-3 shrink-0" /> : <ChevronUp className="w-3 h-3 shrink-0" />}
+            {botSelectorOpen ? <CaretDown className="w-3 h-3 shrink-0" /> : <CaretUp className="w-3 h-3 shrink-0" />}
           </button>
 
           {/* Dropdown - opens upward */}
@@ -389,7 +402,7 @@ export default function App() {
                 className="w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-white/5"
                 style={{ color: "var(--text-muted)" }}
               >
-                <Network className="w-3.5 h-3.5" />
+                <ShareNetwork className="w-3.5 h-3.5" />
                 {t("connections.manage")}
               </button>
             </div>
@@ -410,22 +423,22 @@ export default function App() {
         {/* Mobile top bar */}
         <div className="lg:hidden flex items-center gap-3 px-4 py-2.5 border-b backdrop-blur shrink-0" style={{ borderColor: "var(--border)", background: "var(--bg-secondary)" }}>
           <button onClick={() => setSidebarOpen(true)} style={{ color: "var(--text-muted)" }}>
-            <Menu className="w-6 h-6" />
+            <List className="w-6 h-6" />
           </button>
           <span className="text-sm font-medium truncate">
-            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : view === "agent-status" ? t("sidebar.agentConfig") : t("dashboard.title")}
+            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : view === "agent-status" ? t("sidebar.agentConfig") : view === "timeline" ? t("timeline.title") : t("dashboard.title")}
           </span>
           <button onClick={() => window.location.reload()} className="ml-auto p-1" style={{ color: "var(--text-muted)" }} title="Refresh">
-            <RefreshCw className="w-5 h-5" />
+            <ArrowsClockwise className="w-5 h-5" />
           </button>
           <button onClick={sensitive.toggle} className="p-1" style={{ color: "var(--text-muted)" }}>
-            {sensitive.hidden ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+            {sensitive.hidden ? <EyeSlash className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
           </button>
           <button onClick={toggleTheme} className="p-1" style={{ color: "var(--text-muted)" }}>
             {theme === "dark" ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
           </button>
           <button onClick={() => setSearchOpen(true)} style={{ color: "var(--text-muted)" }}>
-            <Search className="w-5 h-5" />
+            <MagnifyingGlass className="w-5 h-5" />
           </button>
         </div>
 
@@ -448,6 +461,10 @@ export default function App() {
                 onSwitch={switchBot}
                 onRefresh={connState.checkStatuses}
               />
+            </div>
+          ) : view === "timeline" ? (
+            <div className="h-full overflow-auto">
+              <Timeline onOpenFile={openFile} />
             </div>
           ) : view === "dashboard" ? (
             <div className="h-full overflow-auto">

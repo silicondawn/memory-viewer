@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import { useLocale } from "../hooks/useLocale";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft } from "@phosphor-icons/react";
 
 // Bundled at build time via ?raw
 import changelogRaw from "../../CHANGELOG.md?raw";

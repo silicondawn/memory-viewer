@@ -4,7 +4,7 @@ import remarkGfm from "remark-gfm";
 import remarkFrontmatter from "remark-frontmatter";
 import rehypeRaw from "rehype-raw";
 import { fetchFile, saveFile, resolveWikilink, ConflictResult } from "../api";
-import { Pencil, Save, X, Check, AlertCircle, ChevronRight, ArrowUp, Copy, AlertTriangle, RefreshCw, PenTool, Box } from "lucide-react";
+import { PencilSimple, FloppyDisk, X, Check, WarningCircle, CaretRight, ArrowUp, Copy, Warning, ArrowsClockwise, PenNib, Cube } from "@phosphor-icons/react";
 import { PluginSlot } from "../plugins/PluginSlot";
 import { SensitiveText } from "./SensitiveMask";
 import { useLocale } from "../hooks/useLocale";
@@ -99,7 +99,7 @@ function MermaidBlock({ code }: { code: string }) {
           }`}
           title="Normal style"
         >
-          <Box size={14} />
+          <Cube size={14} />
         </button>
         <button
           onClick={() => setStyle("handDrawn")}
@@ -110,7 +110,7 @@ function MermaidBlock({ code }: { code: string }) {
           }`}
           title="Hand-drawn style"
         >
-          <PenTool size={14} />
+          <PenNib size={14} />
         </button>
       </div>
       <div
@@ -291,7 +291,7 @@ function Breadcrumb({ path, hasChanges, onNavigate }: { path: string; hasChanges
         const dir = parts.slice(0, i + 1).join("/");
         return (
           <span key={i} className="flex items-center gap-0.5">
-            {i > 0 && <ChevronRight className="w-3 h-3 shrink-0" style={{ color: "var(--text-faint)" }} />}
+            {i > 0 && <CaretRight className="w-3 h-3 shrink-0" style={{ color: "var(--text-faint)" }} />}
             {isLast ? (
               <span className="truncate">{part}</span>
             ) : (
@@ -556,7 +556,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
           {editing ? (
             <>
               <button onClick={handleSave} className="btn-primary text-sm flex items-center gap-1">
-                <Save className="w-3.5 h-3.5" /> {t("file.save")}
+                <FloppyDisk className="w-3.5 h-3.5" /> {t("file.save")}
               </button>
               <button onClick={handleCancel} className="btn-secondary text-sm flex items-center gap-1">
                 <X className="w-3.5 h-3.5" /> {t("file.cancel")}
@@ -565,11 +565,11 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
           ) : (
             <>
               <button onClick={handleRefresh} className="btn-secondary text-sm flex items-center gap-1" disabled={refreshing} title="Refresh file">
-                <RefreshCw className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
+                <ArrowsClockwise className={`w-3.5 h-3.5 ${refreshing ? "animate-spin" : ""}`} />
               </button>
               <PluginSlot name="fileviewer-toolbar" filePath={filePath} content={content} renderedRef={contentRef} />
               <button onClick={handleEdit} className="btn-secondary text-sm flex items-center gap-1">
-                <Pencil className="w-3.5 h-3.5" /> {t("file.edit")}
+                <PencilSimple className="w-3.5 h-3.5" /> {t("file.edit")}
               </button>
             </>
           )}
@@ -677,7 +677,7 @@ export function FileViewer({ filePath, refreshKey, onNavigate, onOpenFile }: Fil
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
           <div className="rounded-xl p-6 max-w-md w-full mx-4 shadow-2xl" style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}>
             <div className="flex items-center gap-3 mb-4">
-              <AlertTriangle className="w-6 h-6 text-yellow-400 shrink-0" />
+              <Warning className="w-6 h-6 text-yellow-400 shrink-0" />
               <h3 className="text-lg font-bold" style={{ color: "var(--text-primary)" }}>{t("file.conflictTitle")}</h3>
             </div>
             <p className="text-sm mb-1" style={{ color: "var(--text-secondary)" }}>
