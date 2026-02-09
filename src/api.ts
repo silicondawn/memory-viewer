@@ -126,6 +126,20 @@ export interface MonthlyStats {
   count: number;
 }
 
+export interface TimelineEntry {
+  date: string;
+  path: string;
+  title: string;
+  preview: string;
+  tags: string[];
+  charCount: number;
+}
+
+export async function fetchTimeline(): Promise<TimelineEntry[]> {
+  const r = await fetch(`${_baseUrl}/api/timeline`);
+  return r.json();
+}
+
 export async function fetchRecent(limit = 10): Promise<RecentFile[]> {
   const r = await fetch(`${_baseUrl}/api/recent?limit=${limit}`);
   return r.json();

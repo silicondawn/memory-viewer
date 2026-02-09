@@ -537,6 +537,41 @@ app.get("/api/semantic-search", async (c) => {
   return c.json([]);
 });
 
+app.get("/api/timeline", (c) => {
+  const memoryDir = path.join(WORKSPACE, "memory");
+  const results: { date: string; path: string; title: string; preview: string; tags: string[]; charCount: number }[] = [];
+
+  function scanDir(dir: string, rel: string) {
+    let entries: fs.Dirent[];
+    try { entries = fs.readdirSync(dir, { withFileTypes: true }); } catch { return; }
+    for (const e of entries) {
+      if (e.isDirectory()) {
+        scanDir(path.join(dir, e.name), rel ? `${rel}/${e.name}` : e.name);
+      } else if (e.isFile() && /^\d{4}-\d{2}-\d{2}(-\w+)?\.md$/.test(e.name)) {
+        const filePath = `memory/${rel ? rel + "/" : ""}${e.name}`;
+        const fullPath = path.join(dir, e.name);
+        try {
+          const content = fs.readFileSync(fullPath, "utf-8");
+          const date = e.name.match(/(\d{4}-\d{2}-\d{2})/)?.[1] || "";
+          const clean = content.replace(/^---[\s\S]*?---/, "").trim();
+          const titleMatch = clean.match(/^#\s+(.+)$/m);
+          const title = titleMatch ? titleMatch[1].trim() : e.name.replace(/\.md$/, "");
+          const lines = clean.split("\n").filter(l => l.trim() && !l.startsWith("#"));
+          let preview = lines.slice(0, 2).join(" ").replace(/[*_`\[\]]/g, "").trim();
+          if (preview.length > 120) preview = preview.slice(0, 120) + "…";
+          const headers = content.match(/^##\s+(.+)$/gm) || [];
+          const tags = headers.map(h => h.replace(/^##\s+/, "").replace(/[*_`]/g, "").trim()).filter(t => t.length < 20).slice(0, 4);
+          results.push({ date, path: filePath, title, preview: preview || "(空)", tags, charCount: content.length });
+        } catch { /* skip */ }
+      }
+    }
+  }
+
+  scanDir(memoryDir, "");
+  results.sort((a, b) => b.date.localeCompare(a.date));
+  return c.json(results);
+});
+
 app.get("/api/recent", (c) => {
   const files = collectMdFiles(WORKSPACE);
   const withStats = files.map((relPath) => {

@@ -1,16 +1,9 @@
 import { useEffect, useMemo, useState } from "react";
 import { Calendar, FileText, CaretDown, CaretRight, Clock, Hash, Notebook, TextAa } from "@phosphor-icons/react";
-import { fetchFiles, fetchFile, type FileNode } from "../api";
+import { fetchTimeline, type TimelineEntry } from "../api";
 import { useLocale } from "../hooks/useLocale";
 
-interface DiaryEntry {
-  date: string;
-  path: string;
-  title: string;
-  preview: string;
-  tags: string[];
-  charCount: number;
-}
+type DiaryEntry = TimelineEntry;
 
 interface MonthGroup {
   key: string;
@@ -23,44 +16,10 @@ interface Props {
   onOpenFile: (path: string) => void;
 }
 
-function extractMeta(content: string, filename: string) {
-  const clean = content.replace(/^---[\s\S]*?---/, "").trim();
-  const titleMatch = clean.match(/^#\s+(.+)$/m);
-  const title = titleMatch ? titleMatch[1].trim() : filename.replace(/\.md$/, "");
-
-  // Preview: first meaningful paragraph after title
-  const lines = clean.split("\n").filter(l => l.trim() && !l.startsWith("#"));
-  let preview = lines.slice(0, 2).join(" ").replace(/[*_`\[\]]/g, "").trim();
-  if (preview.length > 120) preview = preview.slice(0, 120) + "…";
-
-  // Tags from ## headers
-  const headers = content.match(/^##\s+(.+)$/gm) || [];
-  const tags = headers
-    .map(h => h.replace(/^##\s+/, "").replace(/[*_`]/g, "").trim())
-    .filter(t => t.length < 20)
-    .slice(0, 4);
-
-  return { title, preview: preview || "(空)", tags, charCount: content.length };
-}
-
-function findDiaryFiles(nodes: FileNode[], base = ""): { name: string; path: string }[] {
-  const results: { name: string; path: string }[] = [];
-  for (const n of nodes) {
-    const p = base ? `${base}/${n.name}` : n.path || n.name;
-    if (n.type === "dir" && n.children && (n.name === "memory" || base.includes("memory"))) {
-      results.push(...findDiaryFiles(n.children, p));
-    } else if (n.type === "file" && /^\d{4}-\d{2}-\d{2}(-\w+)?\.md$/.test(n.name)) {
-      results.push({ name: n.name, path: p });
-    }
-  }
-  return results;
-}
-
 export function Timeline({ onOpenFile }: Props) {
   const { t, locale } = useLocale();
   const [entries, setEntries] = useState<DiaryEntry[]>([]);
   const [loading, setLoading] = useState(true);
-  const [progress, setProgress] = useState({ done: 0, total: 0 });
   const [expanded, setExpanded] = useState<Set<string>>(new Set());
   const [tagFilter, setTagFilter] = useState<string | null>(null);
 
@@ -68,30 +27,8 @@ export function Timeline({ onOpenFile }: Props) {
     (async () => {
       setLoading(true);
       try {
-        const tree = await fetchFiles();
-        const diaries = findDiaryFiles(tree).slice(0, 100);
-        setProgress({ done: 0, total: diaries.length });
-
-        const loaded: DiaryEntry[] = [];
-        // Load in batches of 5 for responsiveness
-        for (let i = 0; i < diaries.length; i += 5) {
-          const batch = diaries.slice(i, i + 5);
-          const results = await Promise.all(
-            batch.map(async (f) => {
-              try {
-                const data = await fetchFile(f.path);
-                const date = f.name.match(/(\d{4}-\d{2}-\d{2})/)?.[1] || "";
-                const meta = extractMeta(data.content, f.name);
-                return { date, path: f.path, ...meta } as DiaryEntry;
-              } catch { return null; }
-            })
-          );
-          loaded.push(...results.filter((r): r is DiaryEntry => r !== null));
-          setProgress({ done: Math.min(i + 5, diaries.length), total: diaries.length });
-          setEntries([...loaded]); // Progressive render
-        }
-
-        // Expand current month
+        const data = await fetchTimeline();
+        setEntries(data);
         const now = new Date().toISOString().slice(0, 7);
         setExpanded(new Set([now]));
       } catch (e) {
@@ -177,15 +114,7 @@ export function Timeline({ onOpenFile }: Props) {
           <span className="text-xs" style={{ color: "var(--text-faint)" }}>{t("timeline.months")}</span>
         </div>
         {loading && (
-          <div className="ml-auto flex items-center gap-2 text-xs" style={{ color: "var(--text-faint)" }}>
-            <div className="w-24 h-1.5 rounded-full overflow-hidden" style={{ background: "var(--bg-tertiary)" }}>
-              <div
-                className="h-full rounded-full bg-blue-500 transition-all duration-300"
-                style={{ width: `${progress.total ? (progress.done / progress.total) * 100 : 0}%` }}
-              />
-            </div>
-            {progress.done}/{progress.total}
-          </div>
+          <div className="ml-auto w-4 h-4 border-2 border-t-blue-400 rounded-full animate-spin" style={{ borderColor: "var(--border)" }} />
         )}
       </div>
 
