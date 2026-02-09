@@ -1,5 +1,6 @@
 import { ComponentType } from "react";
 import { MemoryViewerPlugin, PluginSlotName, SlotProps } from "./types";
+import { getBaseUrl } from "../api";
 
 const DISABLED_KEY = "mv-plugins-disabled";
 
@@ -76,6 +77,29 @@ class PluginRegistry {
       result.push(component);
     }
     return result;
+  }
+
+  /** Load external plugins from server */
+  async loadExternal() {
+    try {
+      const res = await fetch(`${getBaseUrl()}/api/plugins`);
+      const list: { id: string; name: string; entry: string }[] = await res.json();
+      for (const info of list) {
+        if (this.plugins.has(info.id)) continue;
+        try {
+          const url = `${getBaseUrl()}/api/plugins/${info.id}/${info.entry}`;
+          const mod = await import(/* @vite-ignore */ url);
+          const plugin: MemoryViewerPlugin = mod.default || mod.plugin;
+          if (plugin?.id) {
+            this.register(plugin);
+          }
+        } catch (e) {
+          console.warn(`Failed to load external plugin "${info.id}":`, e);
+        }
+      }
+    } catch {
+      // No external plugins available
+    }
   }
 
   // useSyncExternalStore compatible

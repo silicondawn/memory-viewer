@@ -35,10 +35,12 @@ interface AppSettings {
     apiKey: string;
     model: string;
   };
+  pluginsDir: string;
 }
 
 const DEFAULT_SETTINGS: AppSettings = {
   embedding: { enabled: false, apiUrl: "", apiKey: "", model: "" },
+  pluginsDir: "",
 };
 
 function loadSettings(): AppSettings {
@@ -283,6 +285,39 @@ async function detectQmd(): Promise<void> {
 
 // Run detection on startup
 detectQmd();
+
+// External plugins directory
+const PLUGINS_DIR = appSettings.pluginsDir || process.env.PLUGINS_DIR || "";
+
+app.get("/api/plugins", (c) => {
+  if (!PLUGINS_DIR || !fs.existsSync(PLUGINS_DIR)) return c.json([]);
+  try {
+    const plugins: { id: string; name: string; entry: string }[] = [];
+    for (const dir of fs.readdirSync(PLUGINS_DIR, { withFileTypes: true })) {
+      if (!dir.isDirectory()) continue;
+      const manifestPath = path.join(PLUGINS_DIR, dir.name, "plugin.json");
+      if (fs.existsSync(manifestPath)) {
+        const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf-8"));
+        plugins.push({ id: manifest.id || dir.name, name: manifest.name || dir.name, entry: manifest.entry || "index.js" });
+      }
+    }
+    return c.json(plugins);
+  } catch { return c.json([]); }
+});
+
+// Serve plugin files
+app.get("/api/plugins/:id/*", (c) => {
+  if (!PLUGINS_DIR) return c.text("No plugins dir", 404);
+  const pluginId = c.req.param("id");
+  const filePath = c.req.path.replace(`/api/plugins/${pluginId}/`, "");
+  const full = path.join(PLUGINS_DIR, pluginId, filePath);
+  if (!full.startsWith(path.join(PLUGINS_DIR, pluginId))) return c.text("Forbidden", 403);
+  if (!fs.existsSync(full)) return c.text("Not found", 404);
+  const content = fs.readFileSync(full, "utf-8");
+  const ext = path.extname(full);
+  const ct = ext === ".js" ? "application/javascript" : ext === ".css" ? "text/css" : "text/plain";
+  return c.text(content, 200, { "Content-Type": ct });
+});
 
 app.get("/api/capabilities", (c) => {
   const embeddingReady = appSettings.embedding.enabled && !!appSettings.embedding.apiUrl && !!appSettings.embedding.apiKey;
