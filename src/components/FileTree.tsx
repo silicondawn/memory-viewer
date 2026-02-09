@@ -83,62 +83,28 @@ export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
     });
   }, []);
 
-  const { botFiles, dailyNotes, otherNodes } = useMemo(() => {
+  const { botFiles, otherNodes } = useMemo(() => {
     const bot: FileNode[] = [];
-    const daily: FileNode[] = [];
     const other: FileNode[] = [];
     
-    function processNodes(nodeList: FileNode[]) {
-      for (const node of nodeList) {
-        if (node.type === "file") {
-          if (isBotFile(node.name)) {
-            bot.push(node);
-          } else if (isDailyNote(node.path)) {
-            daily.push(node);
-          } else {
-            other.push(node);
-          }
-        } else if (node.type === "dir") {
-          if (node.name === "memory") {
-            // Process memory dir children but don't add the dir itself
-            if (node.children) {
-              for (const child of node.children) {
-                if (child.type === "file" && isDailyNote(child.path)) {
-                  daily.push(child);
-                } else if (child.type === "file") {
-                  other.push(child);
-                } else {
-                  other.push(child);
-                }
-              }
-            }
-          } else {
-            other.push(node);
-          }
-        }
+    for (const node of nodes) {
+      if (node.type === "file" && isBotFile(node.name)) {
+        bot.push(node);
+      } else {
+        other.push(node);
       }
     }
     
-    processNodes(nodes);
-    
-    // Sort bot files in a logical order
     const order = [...BOT_FILES];
     bot.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name));
-    
-    // Sort daily notes by date descending (newest first)
-    daily.sort((a, b) => b.path.localeCompare(a.path));
-
-    // Sort other nodes: directories first, then files, alphabetically within each group
     other.sort((a, b) => {
       if (a.type === "dir" && b.type !== "dir") return -1;
       if (a.type !== "dir" && b.type === "dir") return 1;
       return a.name.localeCompare(b.name);
     });
     
-    return { botFiles: bot, dailyNotes: daily, otherNodes: other };
+    return { botFiles: bot, otherNodes: other };
   }, [nodes]);
-
-  const isDailyNotesCollapsed = collapsed.has("__daily_notes__");
 
   return (
     <nav className="text-sm" aria-label="File tree">
@@ -154,47 +120,7 @@ export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
         </div>
       )}
       
-      {/* Daily Notes */}
-      {dailyNotes.length > 0 && (
-        <div className="mb-3">
-          <button
-            onClick={() => toggleCollapsed("__daily_notes__")}
-            className="sidebar-section-title px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider flex items-center gap-1 w-full hover:opacity-80"
-          >
-            {isDailyNotesCollapsed ? <CaretRight className="w-3 h-3" /> : <CaretDown className="w-3 h-3" />}
-            <Calendar className="w-3 h-3" />
-            {t("sidebar.dailyNotes") || "Daily Notes"}
-            <span className="ml-auto text-[10px] font-normal opacity-60">{dailyNotes.length}</span>
-          </button>
-          {!isDailyNotesCollapsed && dailyNotes.map((node) => {
-            const { label, isToday, isYesterday } = getDailyNoteLabel(node.path);
-            const isActive = activeFile === node.path;
-            return (
-              <button
-                key={node.path}
-                onClick={() => onSelect(node.path)}
-                className={`flex items-center gap-1.5 w-full py-1.5 rounded-md transition-colors ${
-                  isActive ? "sidebar-item-active font-medium" : "sidebar-item"
-                }`}
-                style={{ paddingLeft: "20px" }}
-              >
-                <span className="opacity-70 shrink-0">
-                  {isToday ? <Calendar className="w-3.5 h-3.5 text-green-400" /> :
-                   isYesterday ? <Clock className="w-3.5 h-3.5 text-blue-400" /> :
-                   <FileText className="w-3.5 h-3.5 text-gray-500" />}
-                </span>
-                <span className="truncate">{label}</span>
-                {/* Show filename suffix if not just date */}
-                {node.name !== `${node.path.match(/\d{4}-\d{2}-\d{2}/)?.[0]}.md` && (
-                  <span className="text-[10px] opacity-50 truncate">{node.name.replace(/^\d{4}-\d{2}-\d{2}-?/, "").replace(".md", "")}</span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
-      
-      {/* Other Files */}
+      {/* Files */}
       {otherNodes.length > 0 && (
         <div>
           <div className="sidebar-section-title px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider">
