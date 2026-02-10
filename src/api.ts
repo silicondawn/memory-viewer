@@ -21,7 +21,8 @@ export function setCurrentAgent(agentId: string | null) {
 
 // Helper to build URL with agent parameter
 function buildUrl(endpoint: string, params?: Record<string, string>): string {
-  const url = new URL(`${_baseUrl}${endpoint}`);
+  const base = _baseUrl || window.location.origin;
+  const url = new URL(`${base}${endpoint}`);
   if (_currentAgent) {
     url.searchParams.set("agent", _currentAgent);
   }
