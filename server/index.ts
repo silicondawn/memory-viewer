@@ -52,6 +52,7 @@ interface AgentInfo {
   name: string;
   workspace: string;
   emoji: string;
+  skills?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -155,6 +156,7 @@ function getAgents(): AgentInfo[] {
     name: agent.name || agent.id,
     workspace: getAgentWorkspace(agent, defaults),
     emoji: agent.identity?.emoji || "🤖",
+    skills: agent.skills || undefined,
   }));
 }
 

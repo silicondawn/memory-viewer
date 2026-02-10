@@ -327,6 +327,57 @@ export default function App() {
           </kbd>
         </button>
 
+        {/* Agent Selector */}
+        {showAgentSelector && (
+          <div className="mx-2 mt-2 relative">
+            <button
+              onClick={(e) => { e.stopPropagation(); setAgentSelectorOpen(!agentSelectorOpen); }}
+              className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+              style={{ background: "var(--bg-hover)", color: "var(--text-secondary)" }}
+            >
+              <span className="text-base">{agentsState.selectedAgent?.emoji || "🤖"}</span>
+              <span className="truncate flex-1 text-left text-xs font-medium">{agentsState.selectedAgent?.name || "Select Agent"}</span>
+              {agentSelectorOpen ? <CaretUp className="w-3 h-3 shrink-0" /> : <CaretDown className="w-3 h-3 shrink-0" />}
+            </button>
+
+            {agentSelectorOpen && (
+              <div
+                className="absolute left-0 right-0 top-full mt-1 rounded-lg shadow-xl z-50 py-1 max-h-80 overflow-y-auto"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {agentsState.agents.map((agent) => (
+                  <button
+                    key={agent.id}
+                    onClick={() => switchAgent(agent.id)}
+                    className="w-full flex flex-col px-3 py-2 text-sm transition-colors hover:bg-white/5"
+                    style={{ color: agent.id === agentsState.selectedAgentId ? "#3b82f6" : "var(--text-secondary)" }}
+                  >
+                    <div className="flex items-center gap-2 w-full">
+                      <span className="text-base">{agent.emoji}</span>
+                      <span className="truncate flex-1 text-left font-medium">{agent.name}</span>
+                      {agent.id === agentsState.selectedAgentId && <span className="text-xs">✓</span>}
+                    </div>
+                    {agent.skills && agent.skills.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-1 ml-7">
+                        {agent.skills.map((skill) => (
+                          <span
+                            key={skill}
+                            className="text-[10px] px-1.5 py-0.5 rounded-full"
+                            style={{ background: "var(--bg-hover)", color: "var(--text-muted)" }}
+                          >
+                            {skill}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* Quick Access */}
         <div className="mx-2 mt-3">
           <div className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-1" style={{ color: "var(--text-muted)" }}>
@@ -410,42 +461,7 @@ export default function App() {
           <FileTree nodes={files} activeFile={activeFile} onSelect={openFile} />
         </div>
 
-        {/* Agent Selector - Above Bot Selector */}
-        {showAgentSelector && (
-          <div className="border-b px-2 py-2 relative" style={{ borderColor: "var(--border)" }}>
-            <button
-              onClick={(e) => { e.stopPropagation(); setAgentSelectorOpen(!agentSelectorOpen); }}
-              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
-              style={{ color: "var(--text-secondary)" }}
-            >
-              <span className="text-base">{agentsState.selectedAgent?.emoji || "🤖"}</span>
-              <span className="truncate flex-1 text-left text-xs">{agentsState.selectedAgent?.name || "Select Agent"}</span>
-              {agentSelectorOpen ? <CaretDown className="w-3 h-3 shrink-0" /> : <CaretUp className="w-3 h-3 shrink-0" />}
-            </button>
-
-            {/* Dropdown - opens upward */}
-            {agentSelectorOpen && (
-              <div
-                className="absolute left-2 right-2 bottom-full mb-1 rounded-lg shadow-xl z-50 py-1 max-h-60 overflow-y-auto"
-                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                {agentsState.agents.map((agent) => (
-                  <button
-                    key={agent.id}
-                    onClick={() => switchAgent(agent.id)}
-                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-white/5"
-                    style={{ color: agent.id === agentsState.selectedAgentId ? "#3b82f6" : "var(--text-secondary)" }}
-                  >
-                    <span className="text-base">{agent.emoji}</span>
-                    <span className="truncate flex-1 text-left">{agent.name}</span>
-                    {agent.id === agentsState.selectedAgentId && <span className="text-xs">✓</span>}
-                  </button>
-                ))}
-              </div>
-            )}
-          </div>
-        )}
+        {/* Agent Selector removed from bottom - moved to top */}
 
         {/* Bot Selector - Bottom */}
         <div className="border-t px-2 py-2 relative" style={{ borderColor: "var(--border)" }}>

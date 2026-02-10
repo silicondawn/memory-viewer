@@ -82,6 +82,7 @@ export interface AgentInfo {
   name: string;
   workspace: string;
   emoji: string;
+  skills?: string[];
 }
 
 export async function fetchAgents(): Promise<AgentInfo[]> {
