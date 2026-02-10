@@ -34,6 +34,7 @@ interface AgentConfig {
     name?: string;
     emoji?: string;
   };
+  skills?: string[];
 }
 
 interface AgentsConfig {
