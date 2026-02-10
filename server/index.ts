@@ -18,9 +18,41 @@ import Database from "better-sqlite3";
 import { exec as execCallback } from "child_process";
 import util from "util";
 import { watch } from "chokidar";
-import type { ServerWebSocket } from "@hono/node-ws";
+import type { WSContext } from "hono/ws";
 
 const exec = util.promisify(execCallback);
+
+// ---------------------------------------------------------------------------
+// Agent Config Types
+// ---------------------------------------------------------------------------
+interface AgentConfig {
+  id: string;
+  name: string;
+  workspace?: string;
+  agentDir?: string;
+  identity?: {
+    name?: string;
+    emoji?: string;
+  };
+}
+
+interface AgentsConfig {
+  defaults: {
+    workspace?: string;
+  };
+  list: AgentConfig[];
+}
+
+interface OpenClawConfig {
+  agents?: AgentsConfig;
+}
+
+interface AgentInfo {
+  id: string;
+  name: string;
+  workspace: string;
+  emoji: string;
+}
 
 // ---------------------------------------------------------------------------
 // Settings
@@ -63,7 +95,7 @@ let appSettings = loadSettings();
 // Config
 // ---------------------------------------------------------------------------
 const PORT = Number(process.env.PORT) || 3001;
-const WORKSPACE = process.env.WORKSPACE_DIR || path.join(os.homedir(), "clawd");
+const DEFAULT_WORKSPACE = process.env.WORKSPACE_DIR || path.join(os.homedir(), "clawd");
 const STATIC_DIR = process.env.STATIC_DIR || path.join(import.meta.dirname, "..", "dist");
 
 const app = new Hono();
@@ -74,13 +106,87 @@ app.use("*", compress());
 app.use("*", cors({ origin: "*" }));
 
 // ---------------------------------------------------------------------------
+// Agent Management
+// ---------------------------------------------------------------------------
+const OPENCLAW_CONFIG_PATH = path.join(os.homedir(), ".openclaw", "openclaw.json");
+
+function loadOpenClawConfig(): OpenClawConfig | null {
+  try {
+    if (fs.existsSync(OPENCLAW_CONFIG_PATH)) {
+      const raw = fs.readFileSync(OPENCLAW_CONFIG_PATH, "utf-8");
+      return JSON.parse(raw);
+    }
+  } catch (e) {
+    console.error("Failed to load OpenClaw config:", e);
+  }
+  return null;
+}
+
+function getAgentWorkspace(agentConfig: AgentConfig, defaults: { workspace?: string }): string {
+  // Priority: workspace > agentDir > defaults.workspace > DEFAULT_WORKSPACE
+  if (agentConfig.workspace) {
+    return agentConfig.workspace;
+  }
+  if (agentConfig.agentDir) {
+    return agentConfig.agentDir;
+  }
+  if (defaults.workspace) {
+    return defaults.workspace;
+  }
+  return DEFAULT_WORKSPACE;
+}
+
+function getAgents(): AgentInfo[] {
+  const config = loadOpenClawConfig();
+  if (!config?.agents?.list) {
+    // Return default agent if no config
+    return [{
+      id: "default",
+      name: "Default Agent",
+      workspace: DEFAULT_WORKSPACE,
+      emoji: "🤖",
+    }];
+  }
+
+  const defaults = config.agents.defaults || {};
+  
+  return config.agents.list.map((agent) => ({
+    id: agent.id,
+    name: agent.name || agent.id,
+    workspace: getAgentWorkspace(agent, defaults),
+    emoji: agent.identity?.emoji || "🤖",
+  }));
+}
+
+function getAgentById(agentId: string): AgentInfo | null {
+  const agents = getAgents();
+  return agents.find((a) => a.id === agentId) || null;
+}
+
+// Get workspace for a given agent ID
+function getWorkspaceForAgent(agentId: string | null | undefined): string {
+  if (!agentId || agentId === "default") {
+    // Try to find "default" agent in config, otherwise use default workspace
+    const agent = getAgentById("default");
+    if (agent) return agent.workspace;
+    return DEFAULT_WORKSPACE;
+  }
+  
+  const agent = getAgentById(agentId);
+  if (agent) return agent.workspace;
+  
+  // Fallback to default workspace if agent not found
+  return DEFAULT_WORKSPACE;
+}
+
+// ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-function safePath(filePath: string | undefined | null): string | null {
+function safePath(filePath: string | undefined | null, workspace: string): string | null {
   if (!filePath || filePath.includes("..") || !filePath.endsWith(".md")) return null;
-  const full = path.resolve(WORKSPACE, filePath);
-  if (!full.startsWith(path.resolve(WORKSPACE))) return null;
+  const full = path.resolve(workspace, filePath);
+  if (!full.startsWith(path.resolve(workspace))) return null;
   return full;
 }
 
@@ -139,8 +245,21 @@ function collectMdFiles(dir: string, prefix = ""): string[] {
 // REST API
 // ---------------------------------------------------------------------------
 
+// Get agent from query parameter
+function getAgentFromQuery(c: any): { agentId: string; workspace: string } {
+  const agentId = c.req.query("agent") || "default";
+  const workspace = getWorkspaceForAgent(agentId);
+  return { agentId, workspace };
+}
+
+// Agents API
+app.get("/api/agents", (c) => {
+  return c.json(getAgents());
+});
+
 app.get("/api/skills", (c) => {
-  const skillsDir = path.join(WORKSPACE, "skills");
+  const { workspace } = getAgentFromQuery(c);
+  const skillsDir = path.join(workspace, "skills");
   const results: { id: string; name: string; description: string; path: string }[] = [];
   let entries: fs.Dirent[];
   try {
@@ -167,10 +286,14 @@ app.get("/api/skills", (c) => {
   return c.json(results);
 });
 
-app.get("/api/files", (c) => c.json(scanDir(WORKSPACE)));
+app.get("/api/files", (c) => {
+  const { workspace } = getAgentFromQuery(c);
+  return c.json(scanDir(workspace));
+});
 
 app.get("/api/file", (c) => {
-  const full = safePath(c.req.query("path"));
+  const { workspace } = getAgentFromQuery(c);
+  const full = safePath(c.req.query("path"), workspace);
   if (!full) return c.json({ error: "Invalid path" }, 400);
   if (!fs.existsSync(full)) return c.json({ error: "Not found" }, 404);
   const content = fs.readFileSync(full, "utf-8");
@@ -179,8 +302,9 @@ app.get("/api/file", (c) => {
 });
 
 app.put("/api/file", async (c) => {
+  const { workspace } = getAgentFromQuery(c);
   const { path: filePath, content, expectedMtime } = await c.req.json();
-  const full = safePath(filePath);
+  const full = safePath(filePath, workspace);
   if (!full) return c.json({ error: "Invalid path" }, 400);
 
   if (expectedMtime && fs.existsSync(full)) {
@@ -203,10 +327,11 @@ app.put("/api/file", async (c) => {
 });
 
 app.get("/api/resolve-wikilink", (c) => {
+  const { workspace } = getAgentFromQuery(c);
   const link = (c.req.query("link") || "").trim();
   if (!link) return c.json({ error: "Missing link parameter" }, 400);
 
-  const allFiles = collectMdFiles(WORKSPACE);
+  const allFiles = collectMdFiles(workspace);
 
   // Try exact path match first
   const exactPath = link.endsWith(".md") ? link : `${link}.md`;
@@ -235,14 +360,15 @@ app.get("/api/resolve-wikilink", (c) => {
 });
 
 app.get("/api/search", (c) => {
+  const { workspace } = getAgentFromQuery(c);
   const q = (c.req.query("q") || "").trim().toLowerCase();
   if (!q || q.length < 2) return c.json([]);
 
-  const files = collectMdFiles(WORKSPACE);
+  const files = collectMdFiles(workspace);
   const results: { path: string; matches: { line: number; text: string }[] }[] = [];
 
   for (const relPath of files) {
-    const full = path.join(WORKSPACE, relPath);
+    const full = path.join(workspace, relPath);
     let content: string;
     try {
       content = fs.readFileSync(full, "utf-8");
@@ -356,11 +482,12 @@ app.put("/api/settings", async (c) => {
 });
 
 app.get("/api/settings/embedding-stats", (c) => {
+  const { workspace } = getAgentFromQuery(c);
   try {
     const db = getEmbeddingsDb();
     const model = appSettings.embedding.model || "text-embedding-3-small";
     const total = (db.prepare("SELECT COUNT(*) as n FROM embeddings WHERE model = ?").get(model) as any)?.n || 0;
-    const allFiles = collectMdFiles(WORKSPACE).length;
+    const allFiles = collectMdFiles(workspace).length;
     const dbSize = fs.existsSync(EMBEDDINGS_DB_PATH) ? fs.statSync(EMBEDDINGS_DB_PATH).size : 0;
     return c.json({
       cachedFiles: total,
@@ -478,12 +605,12 @@ function setCachedEmbedding(filePath: string, mtime: number, embedding: number[]
   db.prepare("INSERT OR REPLACE INTO embeddings (file_path, mtime, model, embedding) VALUES (?, ?, ?, ?)").run(filePath, mtime, model, buf);
 }
 
-async function getFileEmbeddings(files: string[]): Promise<Map<string, number[]>> {
+async function getFileEmbeddings(files: string[], workspace: string): Promise<Map<string, number[]>> {
   const result = new Map<string, number[]>();
   const toEmbed: string[] = [];
 
   for (const relPath of files) {
-    const full = path.join(WORKSPACE, relPath);
+    const full = path.join(workspace, relPath);
     try {
       const stat = fs.statSync(full);
       const cached = getCachedEmbedding(relPath, stat.mtimeMs);
@@ -497,7 +624,7 @@ async function getFileEmbeddings(files: string[]): Promise<Map<string, number[]>
 
   // Embed uncached files (max 20 per request to stay responsive)
   for (const relPath of toEmbed.slice(0, 20)) {
-    const full = path.join(WORKSPACE, relPath);
+    const full = path.join(workspace, relPath);
     try {
       const content = fs.readFileSync(full, "utf-8").substring(0, 2000);
       const emb = await getEmbedding(content);
@@ -513,6 +640,7 @@ async function getFileEmbeddings(files: string[]): Promise<Map<string, number[]>
 }
 
 app.get("/api/semantic-search", async (c) => {
+  const { workspace } = getAgentFromQuery(c);
   const q = (c.req.query("q") || "").trim();
   const mode = c.req.query("mode") || "bm25"; // bm25 | vector
   if (!q || q.length < 2) return c.json([]);
@@ -543,13 +671,13 @@ app.get("/api/semantic-search", async (c) => {
       const queryEmb = await getEmbedding(q);
       if (!queryEmb) return c.json([]);
 
-      const files = collectMdFiles(WORKSPACE);
-      const fileEmbs = await getFileEmbeddings(files);
+      const files = collectMdFiles(workspace);
+      const fileEmbs = await getFileEmbeddings(files, workspace);
 
       const scored: { path: string; score: number; snippet: string; title: string }[] = [];
       for (const [filePath, emb] of fileEmbs) {
         const sim = cosineSim(queryEmb, emb);
-        const full = path.join(WORKSPACE, filePath);
+        const full = path.join(workspace, filePath);
         let content = "";
         try { content = fs.readFileSync(full, "utf-8"); } catch { continue; }
         const firstLine = content.split("\n").find(l => l.startsWith("#"))?.replace(/^#+\s*/, "") || filePath;
@@ -572,8 +700,119 @@ app.get("/api/semantic-search", async (c) => {
   return c.json([]);
 });
 
+// ============================================================================
+// Tags API - Extract and manage tags from markdown files
+// ============================================================================
+
+interface TagInfo {
+  name: string;
+  count: number;
+  files: string[];
+}
+
+interface FileWithTags {
+  path: string;
+  title: string;
+  preview: string;
+  date: string;
+  tags: string[];
+}
+
+// Extract tags from content: ## headers and #hashtags
+function extractTags(content: string): string[] {
+  const tags = new Set<string>();
+
+  // Extract ## headers
+  const headers = content.match(/^##\s+(.+)$/gm) || [];
+  headers.forEach(h => {
+    const tag = h.replace(/^##\s+/, "").replace(/[*_`]/g, "").trim();
+    if (tag.length < 30 && tag.length > 0) tags.add(tag);
+  });
+
+  // Extract #hashtags (but not markdown headers)
+  const hashtags = content.match(/(?<![#\w])#([\w\u4e00-\u9fa5_-]+)/g) || [];
+  hashtags.forEach(h => {
+    const tag = h.replace(/^#/, "").trim();
+    if (tag.length < 30 && tag.length > 0) tags.add(tag);
+  });
+
+  return Array.from(tags);
+}
+
+// Scan all markdown files and extract tags
+function scanAllTags(workspace: string): Map<string, TagInfo> {
+  const tagMap = new Map<string, TagInfo>();
+  const mdFiles = collectMdFiles(workspace);
+
+  for (const relPath of mdFiles) {
+    const fullPath = path.join(workspace, relPath);
+    try {
+      const content = fs.readFileSync(fullPath, "utf-8");
+      const tags = extractTags(content);
+
+      for (const tag of tags) {
+        if (!tagMap.has(tag)) {
+          tagMap.set(tag, { name: tag, count: 0, files: [] });
+        }
+        const info = tagMap.get(tag)!;
+        info.count++;
+        info.files.push(relPath);
+      }
+    } catch { /* skip */ }
+  }
+
+  return tagMap;
+}
+
+app.get("/api/tags", (c) => {
+  const { workspace } = getAgentFromQuery(c);
+  const tagMap = scanAllTags(workspace);
+  const tags = Array.from(tagMap.values()).sort((a, b) => b.count - a.count);
+  return c.json(tags);
+});
+
+app.get("/api/files-by-tag/:tag", (c) => {
+  const { workspace } = getAgentFromQuery(c);
+  const tagParam = decodeURIComponent(c.req.param("tag"));
+  const tagMap = scanAllTags(workspace);
+  const tagInfo = tagMap.get(tagParam);
+
+  if (!tagInfo) {
+    return c.json([]);
+  }
+
+  const results: FileWithTags[] = [];
+  for (const relPath of tagInfo.files) {
+    const fullPath = path.join(workspace, relPath);
+    try {
+      const content = fs.readFileSync(fullPath, "utf-8");
+      const clean = content.replace(/^---[\s\S]*?---/, "").trim();
+      const titleMatch = clean.match(/^#\s+(.+)$/m);
+      const title = titleMatch ? titleMatch[1].trim() : path.basename(relPath, ".md");
+      const lines = clean.split("\n").filter(l => l.trim() && !l.startsWith("#"));
+      let preview = lines.slice(0, 2).join(" ").replace(/[*_`\[\]]/g, "").trim();
+      if (preview.length > 120) preview = preview.slice(0, 120) + "…";
+      const date = relPath.match(/(\d{4}-\d{2}-\d{2})/)?.[1] || "";
+      const fileTags = extractTags(content);
+
+      results.push({
+        path: relPath,
+        title,
+        preview: preview || "(空)",
+        date,
+        tags: fileTags,
+      });
+    } catch { /* skip */ }
+  }
+
+  // Sort by date (newest first)
+  results.sort((a, b) => b.date.localeCompare(a.date));
+  return c.json(results);
+});
+
 app.get("/api/timeline", (c) => {
-  const memoryDir = path.join(WORKSPACE, "memory");
+  const { workspace } = getAgentFromQuery(c);
+  const memoryDir = path.join(workspace, "memory");
   const results: { date: string; path: string; title: string; preview: string; tags: string[]; charCount: number }[] = [];
 
   function scanDir(dir: string, rel: string) {
@@ -608,9 +847,10 @@ app.get("/api/timeline", (c) => {
 });
 
 app.get("/api/recent", (c) => {
-  const files = collectMdFiles(WORKSPACE);
+  const { workspace } = getAgentFromQuery(c);
+  const files = collectMdFiles(workspace);
   const withStats = files.map((relPath) => {
-    const full = path.join(WORKSPACE, relPath);
+    const full = path.join(workspace, relPath);
     try {
       const stat = fs.statSync(full);
       return { path: relPath, mtime: stat.mtime.getTime(), size: stat.size };
@@ -624,7 +864,8 @@ app.get("/api/recent", (c) => {
 });
 
 app.get("/api/stats/monthly", (c) => {
-  const memoryDir = path.join(WORKSPACE, "memory");
+  const { workspace } = getAgentFromQuery(c);
+  const memoryDir = path.join(workspace, "memory");
   const counts: Record<string, number> = {};
   let entries: fs.Dirent[];
   try {
@@ -652,7 +893,8 @@ app.get("/api/stats/monthly", (c) => {
 });
 
 app.get("/api/stats/daily", (c) => {
-  const memoryDir = path.join(WORKSPACE, "memory");
+  const { workspace } = getAgentFromQuery(c);
+  const memoryDir = path.join(workspace, "memory");
   const results: { date: string; count: number; size: number }[] = [];
   let entries: fs.Dirent[];
   try {
@@ -685,10 +927,11 @@ app.get("/api/stats/daily", (c) => {
 });
 
 app.get("/api/info", (c) => {
+  const { workspace } = getAgentFromQuery(c);
   let name = "Unknown Bot";
   let description = "";
   for (const fname of ["IDENTITY.md", "SOUL.md"]) {
-    const fpath = path.join(WORKSPACE, fname);
+    const fpath = path.join(workspace, fname);
     if (fs.existsSync(fpath)) {
       const content = fs.readFileSync(fpath, "utf-8");
       const heading = content.match(/^#\s+(.+)/m);
@@ -702,6 +945,7 @@ app.get("/api/info", (c) => {
 });
 
 app.get("/api/system", (c) => {
+  const { workspace } = getAgentFromQuery(c);
   const uptime = os.uptime();
   const memTotal = os.totalmem();
   const memFree = os.freemem();
@@ -710,7 +954,7 @@ app.get("/api/system", (c) => {
   const hostname = os.hostname();
 
   const today = new Date().toISOString().split("T")[0];
-  const todayPath = path.join(WORKSPACE, "memory", `${today}.md`);
+  const todayPath = path.join(workspace, "memory", `${today}.md`);
   let todayMemory = null;
   if (fs.existsSync(todayPath)) {
     const content = fs.readFileSync(todayPath, "utf-8");
@@ -721,7 +965,7 @@ app.get("/api/system", (c) => {
     };
   }
 
-  const totalFiles = collectMdFiles(WORKSPACE).length;
+  const totalFiles = collectMdFiles(workspace).length;
 
   return c.json({
     uptime, memTotal, memFree, memUsed: memTotal - memFree,
@@ -767,7 +1011,7 @@ app.get("/api/agent/status", async (c) => {
   // 3. Heartbeat
   let heartbeat = null;
   try {
-    const hbPath = path.join(WORKSPACE, "memory", "heartbeat-state.json");
+    const hbPath = path.join(DEFAULT_WORKSPACE, "memory", "heartbeat-state.json");
     if (fs.existsSync(hbPath)) {
       heartbeat = JSON.parse(fs.readFileSync(hbPath, "utf-8"));
     }
@@ -827,8 +1071,9 @@ const GATEWAY_CHAT_URL = process.env.GATEWAY_CHAT_URL || "http://silicon-01:3001
 const SUMMARIZE_MODEL = process.env.SUMMARIZE_MODEL || "kimi-k2.5";
 
 app.post("/api/summarize", async (c) => {
+  const { workspace } = getAgentFromQuery(c);
   const { path: filePath, content: providedContent, save } = await c.req.json();
-  const full = safePath(filePath);
+  const full = safePath(filePath, workspace);
   if (!full) return c.json({ error: "Invalid path" }, 400);
 
   let content = providedContent;
@@ -906,7 +1151,7 @@ app.post("/api/summarize", async (c) => {
 // ---------------------------------------------------------------------------
 // WebSocket — live file change notifications
 // ---------------------------------------------------------------------------
-const wsClients = new Set<ServerWebSocket>();
+const wsClients = new Set<WSContext>();
 
 app.get("/ws", upgradeWebSocket(() => ({
   onOpen(_event, ws) {
@@ -924,14 +1169,14 @@ function broadcast(data: object) {
   }
 }
 
-const watcher = watch(path.join(WORKSPACE, "**/*.md"), {
+const watcher = watch(path.join(DEFAULT_WORKSPACE, "**/*.md"), {
   ignoreInitial: true,
   ignored: /(^|[/\\])\.(git|node_modules)/,
   awaitWriteFinish: { stabilityThreshold: 300 },
 });
 
 watcher.on("all", (event, filePath) => {
-  const rel = path.relative(WORKSPACE, filePath);
+  const rel = path.relative(DEFAULT_WORKSPACE, filePath);
   broadcast({ type: "file-change", event, path: rel });
 });
 
@@ -939,9 +1184,10 @@ watcher.on("all", (event, filePath) => {
 // Workspace assets (images, SVGs, etc.)
 // ---------------------------------------------------------------------------
 app.get("/workspace-assets/*", async (c) => {
+  const { workspace } = getAgentFromQuery(c);
   const assetPath = c.req.path.replace("/workspace-assets/", "");
-  const fullPath = path.join(WORKSPACE, "assets", assetPath);
-  if (!fullPath.startsWith(path.join(WORKSPACE, "assets"))) {
+  const fullPath = path.join(workspace, "assets", assetPath);
+  if (!fullPath.startsWith(path.join(workspace, "assets"))) {
     return c.json({ error: "Invalid path" }, 403);
   }
   if (!fs.existsSync(fullPath)) {
@@ -986,8 +1232,7 @@ if (fs.existsSync(STATIC_DIR)) {
 if (process.env.NODE_ENV !== 'test') {
   const server = serve({ fetch: app.fetch, port: PORT, hostname: "0.0.0.0" }, (info) => {
     console.log(`📝 Memory Viewer running at http://localhost:${info.port}`);
-    console.log(`📂 Workspace: ${WORKSPACE}`);
+    console.log(`📂 Default Workspace: ${DEFAULT_WORKSPACE}`);
   });
   injectWebSocket(server);
 }
-

@@ -165,6 +165,22 @@ const dict: Record<string, Record<Locale, string>> = {
   "timeline.chars": { en: "chars", zh: "字" },
   "timeline.months": { en: "months", zh: "个月" },
 
+  // Tags
+  "sidebar.tags": { en: "Tags", zh: "标签" },
+  "tags.title": { en: "Tags", zh: "标签" },
+  "tags.subtitle": { en: "Browse memories by topic", zh: "按主题浏览记忆" },
+  "tags.totalTags": { en: "tags", zh: "标签" },
+  "tags.totalFiles": { en: "files", zh: "文件" },
+  "tags.avgPerTag": { en: "avg", zh: "平均" },
+  "tags.popular": { en: "Popular Tags", zh: "热门标签" },
+  "tags.clear": { en: "Clear filter", zh: "清除筛选" },
+  "tags.showing": { en: "Showing tag:", zh: "显示标签：" },
+  "tags.files": { en: "files", zh: "个文件" },
+  "tags.tags": { en: "tags", zh: "个标签" },
+  "tags.noFiles": { en: "No files found with this tag", zh: "没有找到相关文件" },
+  "tags.empty": { en: "No tags yet", zh: "暂无标签" },
+  "tags.emptyHint": { en: "Use ## headers or #hashtags in Markdown to create tags", zh: "在 Markdown 中使用 ## 标题 或 #标签 来创建标签" },
+
   // Settings
   "settings.title": { en: "Settings", zh: "设置" },
   "sidebar.settings": { en: "Settings", zh: "设置" },

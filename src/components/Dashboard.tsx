@@ -1,9 +1,9 @@
 import { useEffect, useState } from "react";
-import { fetchSystem, fetchRecent, fetchDailyStats, type SystemInfo, type RecentFile, type DailyStats } from "../api";
+import { fetchSystem, fetchRecent, fetchDailyStats, fetchAgents, type SystemInfo, type RecentFile, type DailyStats, type AgentInfo } from "../api";
 import { ContributionHeatmap } from "./ContributionHeatmap";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
-import { SquaresFour, FileText, Clock, ChartBar, Lightning } from "@phosphor-icons/react";
+import { SquaresFour, FileText, Clock, ChartBar, Lightning, Robot, Folder } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
 function formatUptime(seconds: number): string {
@@ -39,11 +39,13 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
   const [info, setInfo] = useState<SystemInfo | null>(null);
   const [recent, setRecent] = useState<RecentFile[]>([]);
   const [daily, setDaily] = useState<DailyStats[]>([]);
+  const [agents, setAgents] = useState<AgentInfo[]>([]);
 
   useEffect(() => {
     fetchSystem().then(setInfo).catch(console.error);
     fetchRecent(10).then(setRecent).catch(console.error);
     fetchDailyStats().then(setDaily).catch(console.error);
+    fetchAgents().then(setAgents).catch(console.error);
   }, []);
 
   if (!info) {
@@ -82,6 +84,36 @@ export function Dashboard({ onOpenFile }: { onOpenFile: (path: string) => void }
         <span className="inline-block w-2 h-2 rounded-full bg-emerald-400" />
         {info.hostname} · {info.platform}
       </div>
+
+      {/* Agents Overview */}
+      {agents.length > 1 && (
+        <section className="rounded-xl p-5" style={{ background: "var(--bg-tertiary)", border: "1px solid var(--border)" }}>
+          <h2 className="text-lg font-semibold flex items-center gap-2 mb-4" style={{ color: "var(--text-primary)" }}>
+            <Robot className="w-5 h-5 text-blue-400" /> Agents
+            <span className="text-sm font-normal opacity-60 ml-2">{agents.length} configured</span>
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {agents.map((agent) => (
+              <div
+                key={agent.id}
+                className="rounded-lg p-3 flex items-center gap-3"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+              >
+                <span className="text-2xl">{agent.emoji}</span>
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate" style={{ color: "var(--text-primary)" }}>
+                    {agent.name}
+                  </div>
+                  <div className="text-xs truncate flex items-center gap-1" style={{ color: "var(--text-faint)" }}>
+                    <Folder className="w-3 h-3" />
+                    {agent.workspace}
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       {/* Two-column: Recently Modified + Monthly Stats */}
       <div className="grid grid-cols-1 gap-4">

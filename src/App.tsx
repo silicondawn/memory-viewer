@@ -12,9 +12,11 @@ import { useWebSocket } from "./hooks/useWebSocket";
 import { useTheme } from "./hooks/useTheme";
 import { useSensitiveState, SensitiveProvider } from "./hooks/useSensitive";
 import { useConnections } from "./hooks/useConnections";
+import { useAgents } from "./hooks/useAgents";
 import { AgentStatusPage } from "./components/AgentStatus";
 import { SettingsPage } from "./components/SettingsPage";
-import { BookOpen, X, List, MagnifyingGlass, Sun, Moon, Eye, EyeSlash, Translate, ShareNetwork, CaretDown, CaretUp, ArrowsClockwise, Gear, Monitor, PuzzlePiece, CaretRight, Calendar, SquaresFour, Power, Clock } from "@phosphor-icons/react";
+import { Tags } from "./components/Tags";
+import { BookOpen, X, List, MagnifyingGlass, Sun, Moon, Eye, EyeSlash, Translate, ShareNetwork, CaretDown, CaretUp, ArrowsClockwise, Gear, Monitor, PuzzlePiece, CaretRight, Calendar, SquaresFour, Power, Clock, Tag, Robot } from "@phosphor-icons/react";
 import { useSyncExternalStore } from "react";
 import { pluginRegistry } from "./plugins/registry";
 import { useZoom } from "./hooks/useZoom";
@@ -26,11 +28,12 @@ export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [activeFile, setActiveFile] = useState("");
-  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status" | "skills" | "timeline" | "settings">("dashboard");
+  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status" | "skills" | "timeline" | "tags" | "settings">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
   const [botSelectorOpen, setBotSelectorOpen] = useState(false);
+  const [agentSelectorOpen, setAgentSelectorOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [teslaMode, setTeslaMode] = useState(() => localStorage.getItem("memory-viewer-tesla") === "true");
   const { zoom, setZoom, ZOOM_LEVELS } = useZoom();
@@ -41,6 +44,7 @@ export default function App() {
   const localeState = useLocaleState();
   const { t, toggleLocale, locale } = localeState;
   const connState = useConnections();
+  const agentsState = useAgents();
   const pluginVersion = useSyncExternalStore(pluginRegistry.subscribe, pluginRegistry.getSnapshot);
   const allPlugins = pluginRegistry.getAll();
 
@@ -54,8 +58,10 @@ export default function App() {
     fetchSkills().then(setSkills).catch(console.error);
   }, []);
 
-  // Reload files when active connection changes
-  useEffect(() => { loadFiles(); }, [loadFiles, connState.active.id]);
+  // Reload files when active connection or agent changes
+  useEffect(() => { 
+    loadFiles(); 
+  }, [loadFiles, connState.active.id, agentsState.selectedAgentId]);
 
   // Live reload via WebSocket
   useWebSocket((data) => {
@@ -87,6 +93,14 @@ export default function App() {
     return () => document.removeEventListener("click", handler);
   }, [botSelectorOpen]);
 
+  // Close agent selector on outside click
+  useEffect(() => {
+    if (!agentSelectorOpen) return;
+    const handler = () => setAgentSelectorOpen(false);
+    setTimeout(() => document.addEventListener("click", handler), 0);
+    return () => document.removeEventListener("click", handler);
+  }, [agentSelectorOpen]);
+
   // Close settings on outside click
   useEffect(() => {
     if (!settingsOpen) return;
@@ -112,6 +126,7 @@ export default function App() {
       if (hash === "#/changelog") { setView("changelog"); return; }
       if (hash === "#/skills") { setView("skills"); return; }
       if (hash === "#/timeline") { setView("timeline"); return; }
+      if (hash === "#/tags") { setView("tags"); return; }
       if (hash === "#/settings") { setView("settings"); return; }
     };
     readHash();
@@ -140,8 +155,20 @@ export default function App() {
     setActiveFile("");
   };
 
+  const switchAgent = (agentId: string) => {
+    agentsState.selectAgent(agentId);
+    setAgentSelectorOpen(false);
+    setView("dashboard");
+    setActiveFile("");
+    // Reload files for new agent
+    setTimeout(() => loadFiles(), 0);
+  };
+
   const online = connState.statuses[connState.active.id] ?? (connState.active.isLocal ? true : false);
   const todayFile = `memory/${new Date().toISOString().slice(0, 10)}.md`;
+
+  // Show agent selector only for local connections with multiple agents
+  const showAgentSelector = connState.active.isLocal && agentsState.agents.length > 1;
 
   return (
     <LocaleContext.Provider value={localeState}>
@@ -329,6 +356,17 @@ export default function App() {
               {t("sidebar.timeline") || "Timeline"}
             </button>
             <button
+              onClick={() => { setView("tags"); setSidebarOpen(false); window.history.pushState(null, "", "#/tags"); }}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+              style={{
+                color: view === "tags" ? "var(--link)" : "var(--text-secondary)",
+                background: view === "tags" ? "var(--bg-active)" : undefined,
+              }}
+            >
+              <Tag className="w-4 h-4 text-pink-400" />
+              {t("sidebar.tags") || "Tags"}
+            </button>
+            <button
               onClick={goHome}
               className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
               style={{
@@ -371,6 +409,43 @@ export default function App() {
         <div className="flex-1 overflow-y-auto px-2 py-3">
           <FileTree nodes={files} activeFile={activeFile} onSelect={openFile} />
         </div>
+
+        {/* Agent Selector - Above Bot Selector */}
+        {showAgentSelector && (
+          <div className="border-b px-2 py-2 relative" style={{ borderColor: "var(--border)" }}>
+            <button
+              onClick={(e) => { e.stopPropagation(); setAgentSelectorOpen(!agentSelectorOpen); }}
+              className="w-full flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+              style={{ color: "var(--text-secondary)" }}
+            >
+              <span className="text-base">{agentsState.selectedAgent?.emoji || "🤖"}</span>
+              <span className="truncate flex-1 text-left text-xs">{agentsState.selectedAgent?.name || "Select Agent"}</span>
+              {agentSelectorOpen ? <CaretDown className="w-3 h-3 shrink-0" /> : <CaretUp className="w-3 h-3 shrink-0" />}
+            </button>
+
+            {/* Dropdown - opens upward */}
+            {agentSelectorOpen && (
+              <div
+                className="absolute left-2 right-2 bottom-full mb-1 rounded-lg shadow-xl z-50 py-1 max-h-60 overflow-y-auto"
+                style={{ background: "var(--bg-secondary)", border: "1px solid var(--border)" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                {agentsState.agents.map((agent) => (
+                  <button
+                    key={agent.id}
+                    onClick={() => switchAgent(agent.id)}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-sm transition-colors hover:bg-white/5"
+                    style={{ color: agent.id === agentsState.selectedAgentId ? "#3b82f6" : "var(--text-secondary)" }}
+                  >
+                    <span className="text-base">{agent.emoji}</span>
+                    <span className="truncate flex-1 text-left">{agent.name}</span>
+                    {agent.id === agentsState.selectedAgentId && <span className="text-xs">✓</span>}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Bot Selector - Bottom */}
         <div className="border-t px-2 py-2 relative" style={{ borderColor: "var(--border)" }}>
@@ -439,7 +514,7 @@ export default function App() {
             <List className="w-6 h-6" />
           </button>
           <span className="text-sm font-medium truncate">
-            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : view === "agent-status" ? t("sidebar.agentConfig") : view === "timeline" ? t("timeline.title") : view === "settings" ? t("settings.title") : t("dashboard.title")}
+            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : view === "agent-status" ? t("sidebar.agentConfig") : view === "timeline" ? t("timeline.title") : view === "tags" ? t("tags.title") : view === "settings" ? t("settings.title") : t("dashboard.title")}
           </span>
           <button onClick={() => window.location.reload()} className="ml-auto p-1" style={{ color: "var(--text-muted)" }} title="Refresh">
             <ArrowsClockwise className="w-5 h-5" />
@@ -478,6 +553,10 @@ export default function App() {
           ) : view === "timeline" ? (
             <div className="h-full overflow-auto">
               <Timeline onOpenFile={openFile} />
+            </div>
+          ) : view === "tags" ? (
+            <div className="h-full overflow-auto">
+              <Tags onOpenFile={openFile} />
             </div>
           ) : view === "settings" ? (
             <SettingsPage onBack={goHome} />

@@ -1,6 +1,7 @@
 /** API client for Memory Viewer backend. */
 
 let _baseUrl = "";
+let _currentAgent: string | null = null;
 
 export function getBaseUrl(): string {
   return _baseUrl;
@@ -8,6 +9,28 @@ export function getBaseUrl(): string {
 
 export function setBaseUrl(url: string) {
   _baseUrl = url.replace(/\/+$/, "");
+}
+
+export function getCurrentAgent(): string | null {
+  return _currentAgent;
+}
+
+export function setCurrentAgent(agentId: string | null) {
+  _currentAgent = agentId;
+}
+
+// Helper to build URL with agent parameter
+function buildUrl(endpoint: string, params?: Record<string, string>): string {
+  const url = new URL(`${_baseUrl}${endpoint}`);
+  if (_currentAgent) {
+    url.searchParams.set("agent", _currentAgent);
+  }
+  if (params) {
+    Object.entries(params).forEach(([key, value]) => {
+      url.searchParams.set(key, value);
+    });
+  }
+  return url.toString();
 }
 
 export interface FileNode {
@@ -52,18 +75,32 @@ export interface BotInfo {
 
 export interface SkillInfo { id: string; name: string; description: string; path: string; }
 
+// Agent types
+export interface AgentInfo {
+  id: string;
+  name: string;
+  workspace: string;
+  emoji: string;
+}
+
+export async function fetchAgents(): Promise<AgentInfo[]> {
+  const r = await fetch(`${_baseUrl}/api/agents`);
+  if (!r.ok) throw new Error("Failed to load agents");
+  return r.json();
+}
+
 export async function fetchSkills(): Promise<SkillInfo[]> {
-  const r = await fetch(`${_baseUrl}/api/skills`);
+  const r = await fetch(buildUrl("/api/skills"));
   return r.json();
 }
 
 export async function fetchFiles(): Promise<FileNode[]> {
-  const r = await fetch(`${_baseUrl}/api/files`);
+  const r = await fetch(buildUrl("/api/files"));
   return r.json();
 }
 
 export async function fetchFile(path: string): Promise<FileData> {
-  const r = await fetch(`${_baseUrl}/api/file?path=${encodeURIComponent(path)}`);
+  const r = await fetch(buildUrl("/api/file", { path }));
   if (!r.ok) throw new Error("Failed to load file");
   return r.json();
 }
@@ -85,7 +122,7 @@ export async function saveFile(
   content: string,
   expectedMtime?: string
 ): Promise<SaveResult | ConflictResult> {
-  const r = await fetch(`${_baseUrl}/api/file`, {
+  const r = await fetch(buildUrl("/api/file"), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path, content, expectedMtime }),
@@ -94,12 +131,12 @@ export async function saveFile(
 }
 
 export async function fetchSystem(): Promise<SystemInfo> {
-  const r = await fetch(`${_baseUrl}/api/system`);
+  const r = await fetch(buildUrl("/api/system"));
   return r.json();
 }
 
 export async function searchFiles(query: string): Promise<SearchResult[]> {
-  const r = await fetch(`${_baseUrl}/api/search?q=${encodeURIComponent(query)}`);
+  const r = await fetch(buildUrl("/api/search", { q: query }));
   return r.json();
 }
 
@@ -111,7 +148,7 @@ export interface SemanticResult {
 }
 
 export async function semanticSearch(query: string, mode: "bm25" | "vector" = "bm25"): Promise<SemanticResult[]> {
-  const r = await fetch(`${_baseUrl}/api/semantic-search?q=${encodeURIComponent(query)}&mode=${mode}`);
+  const r = await fetch(buildUrl("/api/semantic-search", { q: query, mode }));
   return r.json();
 }
 
@@ -136,29 +173,58 @@ export interface TimelineEntry {
 }
 
 export async function fetchTimeline(): Promise<TimelineEntry[]> {
-  const r = await fetch(`${_baseUrl}/api/timeline`);
+  const r = await fetch(buildUrl("/api/timeline"));
+  return r.json();
+}
+
+// ============================================================================
+// Tags API
+// ============================================================================
+
+export interface TagInfo {
+  name: string;
+  count: number;
+  files: string[];
+}
+
+export interface FileWithTags {
+  path: string;
+  title: string;
+  preview: string;
+  date: string;
+  tags: string[];
+}
+
+export async function fetchTags(): Promise<TagInfo[]> {
+  const r = await fetch(buildUrl("/api/tags"));
+  return r.json();
+}
+
+export async function fetchFilesByTag(tag: string): Promise<FileWithTags[]> {
+  const r = await fetch(buildUrl(`/api/files-by-tag/${encodeURIComponent(tag)}`));
   return r.json();
 }
 
 export async function fetchRecent(limit = 10): Promise<RecentFile[]> {
-  const r = await fetch(`${_baseUrl}/api/recent?limit=${limit}`);
+  const r = await fetch(buildUrl("/api/recent", { limit: String(limit) }));
   return r.json();
 }
 
 export async function fetchMonthlyStats(): Promise<MonthlyStats[]> {
-  const r = await fetch(`${_baseUrl}/api/stats/monthly`);
+  const r = await fetch(buildUrl("/api/stats/monthly"));
   return r.json();
 }
 
 export interface DailyStats { date: string; count: number; size: number; }
 
 export async function fetchDailyStats(): Promise<DailyStats[]> {
-  const r = await fetch(`${_baseUrl}/api/stats/daily`);
+  const r = await fetch(buildUrl("/api/stats/daily"));
   return r.json();
 }
 
 export async function fetchBotInfo(baseUrl = ""): Promise<BotInfo> {
-  const r = await fetch(`${baseUrl.replace(/\/+$/, "")}/api/info`);
+  const url = baseUrl ? baseUrl.replace(/\/+$/, "") : _baseUrl;
+  const r = await fetch(`${url}/api/info${_currentAgent ? `?agent=${_currentAgent}` : ""}`);
   return r.json();
 }
 
@@ -183,7 +249,7 @@ export interface WikilinkResolution {
 }
 
 export async function resolveWikilink(link: string): Promise<WikilinkResolution> {
-  const r = await fetch(`${_baseUrl}/api/resolve-wikilink?link=${encodeURIComponent(link)}`);
+  const r = await fetch(buildUrl("/api/resolve-wikilink", { link }));
   return r.json();
 }
 
@@ -195,7 +261,7 @@ export interface SummarizeResult {
 }
 
 export async function summarizeFile(path: string, save = false): Promise<SummarizeResult> {
-  const r = await fetch(`${_baseUrl}/api/summarize`, {
+  const r = await fetch(buildUrl("/api/summarize"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ path, save }),
@@ -206,7 +272,7 @@ export async function summarizeFile(path: string, save = false): Promise<Summari
 }
 
 export async function fetchAgentStatus(): Promise<AgentStatus> {
-  const r = await fetch(`${_baseUrl}/api/agent/status`);
+  const r = await fetch(`${_baseUrl}/api/agent/status${_currentAgent ? `?agent=${_currentAgent}` : ""}`);
   return r.json();
 }
 
@@ -231,7 +297,7 @@ export interface Capabilities {
 
 export async function fetchCapabilities(): Promise<Capabilities> {
   try {
-    const r = await fetch(`${_baseUrl}/api/capabilities`);
+    const r = await fetch(buildUrl("/api/capabilities"));
     return r.json();
   } catch {
     return { qmd: false, qmdBm25: false, qmdVector: false, embeddingApi: false };
@@ -239,12 +305,12 @@ export async function fetchCapabilities(): Promise<Capabilities> {
 }
 
 export async function fetchSettings(): Promise<Settings> {
-  const r = await fetch(`${_baseUrl}/api/settings`);
+  const r = await fetch(buildUrl("/api/settings"));
   return r.json();
 }
 
 export async function saveSettings(settings: Partial<Settings>): Promise<{ success: boolean }> {
-  const r = await fetch(`${_baseUrl}/api/settings`, {
+  const r = await fetch(buildUrl("/api/settings"), {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings),
@@ -253,7 +319,7 @@ export async function saveSettings(settings: Partial<Settings>): Promise<{ succe
 }
 
 export async function testEmbeddingConnection(settings?: Partial<EmbeddingSettings>): Promise<{ success: boolean; error?: string }> {
-  const r = await fetch(`${_baseUrl}/api/settings/test-embedding`, {
+  const r = await fetch(buildUrl("/api/settings/test-embedding"), {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify(settings || {}),

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { app } from '../server/index';
+import { app } from '../server/index.js';
 
 describe('Server API', () => {
   it('GET /api/info returns bot info', async () => {
