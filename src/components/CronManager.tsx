@@ -37,6 +37,12 @@ export function CronManager() {
   const [runs, setRuns] = useState<CronRun[]>([]);
   const [runsLoading, setRunsLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [toast, setToast] = useState<{ message: string; type: "ok" | "error" } | null>(null);
+
+  const showToast = (message: string, type: "ok" | "error" = "ok") => {
+    setToast({ message, type });
+    setTimeout(() => setToast(null), 3000);
+  };
 
   const loadJobs = async () => {
     try {
@@ -87,9 +93,10 @@ export function CronManager() {
     setActionLoading(job.id);
     try {
       await toggleCronJob(job.id, !job.enabled);
+      showToast(`${!job.enabled ? "✅ 已启用" : "⏸ 已禁用"} ${job.name}`);
       await loadJobs();
-    } catch (e) {
-      console.error("Toggle failed:", e);
+    } catch (e: any) {
+      showToast(`❌ ${e.message || "操作失败"}`, "error");
     } finally {
       setActionLoading(null);
     }
@@ -100,10 +107,13 @@ export function CronManager() {
     try {
       const result = await runCronJob(job.id);
       if (result.success) {
-        setTimeout(loadJobs, 1000);
+        showToast(`⚡ ${job.name} 已触发运行`);
+        setTimeout(loadJobs, 2000);
+      } else {
+        showToast(`❌ ${result.error || "运行失败"}`, "error");
       }
-    } catch (e) {
-      console.error("Run failed:", e);
+    } catch (e: any) {
+      showToast(`❌ ${e.message || "请求失败"}`, "error");
     } finally {
       setActionLoading(null);
     }
@@ -150,7 +160,22 @@ export function CronManager() {
   }
 
   return (
-    <div className="h-full overflow-auto">
+    <div className="h-full overflow-auto relative">
+      {/* Toast */}
+      {toast && (
+        <div
+          className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-lg shadow-lg text-sm font-medium animate-[fadeIn_0.2s_ease-out]"
+          style={{
+            background: toast.type === "ok" ? "rgba(34,197,94,0.15)" : "rgba(239,68,68,0.15)",
+            color: toast.type === "ok" ? "#22c55e" : "#ef4444",
+            border: `1px solid ${toast.type === "ok" ? "rgba(34,197,94,0.3)" : "rgba(239,68,68,0.3)"}`,
+            backdropFilter: "blur(12px)",
+          }}
+        >
+          {toast.message}
+        </div>
+      )}
+
       <div className="max-w-5xl mx-auto px-4 py-6 sm:px-6">
         {/* Header */}
         <div className="flex items-center justify-between mb-6">
@@ -278,19 +303,25 @@ export function CronManager() {
                         onClick={() => handleToggle(job)}
                         disabled={actionLoading === job.id}
                         className="p-1.5 rounded-md transition-colors hover:bg-white/10"
-                        style={{ color: job.enabled ? "#eab308" : "#22c55e" }}
+                        style={{ color: actionLoading === job.id ? "var(--text-muted)" : job.enabled ? "#eab308" : "#22c55e" }}
                         title={job.enabled ? t("cron.disable") : t("cron.enable")}
                       >
-                        {job.enabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
+                        {actionLoading === job.id ? (
+                          <ArrowsClockwise className="w-4 h-4 animate-spin" />
+                        ) : job.enabled ? <Pause className="w-4 h-4" /> : <Play className="w-4 h-4" />}
                       </button>
                       <button
                         onClick={() => handleRun(job)}
                         disabled={actionLoading === `run-${job.id}`}
                         className="p-1.5 rounded-md transition-colors hover:bg-white/10"
-                        style={{ color: "var(--link)" }}
+                        style={{ color: actionLoading === `run-${job.id}` ? "var(--text-muted)" : "var(--link)" }}
                         title={t("cron.runNow")}
                       >
-                        <Lightning className="w-4 h-4" />
+                        {actionLoading === `run-${job.id}` ? (
+                          <ArrowsClockwise className="w-4 h-4 animate-spin" />
+                        ) : (
+                          <Lightning className="w-4 h-4" />
+                        )}
                       </button>
                       <button
                         onClick={() => setSelectedJob(selectedJob === job.id ? null : job.id)}

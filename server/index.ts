@@ -1300,21 +1300,58 @@ app.get("/api/crons/:id/runs", (c) => {
 app.post("/api/crons/:id/toggle", async (c) => {
   const { id } = c.req.param();
   const { enabled } = await c.req.json();
-  const jobs = readCronJobs();
-  const idx = jobs.findIndex(j => j.id === id);
-  if (idx === -1) return c.json({ error: "Job not found" }, 404);
-  jobs[idx].enabled = enabled;
-  const ok = writeCronJobs(jobs);
-  return c.json({ success: ok, job: formatCronJob(jobs[idx]) });
+  try {
+    const configPath = path.join(os.homedir(), ".openclaw", "openclaw.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    const port = config.gateway?.port || 18789;
+    const token = config.gateway?.auth?.token || "";
+
+    const method = enabled ? "cron.update" : "cron.update";
+    const resp = await fetch(`http://127.0.0.1:${port}/rpc`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: 1,
+        method: "cron.update",
+        params: { jobId: id, patch: { enabled } },
+      }),
+      signal: AbortSignal.timeout(10000),
+    });
+    const result = await resp.json();
+    if (result.error) {
+      return c.json({ success: false, error: result.error.message }, 500);
+    }
+    return c.json({ success: true, job: result.result });
+  } catch (e: any) {
+    // Fallback to direct file write
+    const jobs = readCronJobs();
+    const idx = jobs.findIndex(j => j.id === id);
+    if (idx === -1) return c.json({ error: "Job not found" }, 404);
+    jobs[idx].enabled = enabled;
+    const ok = writeCronJobs(jobs);
+    return c.json({ success: ok, job: formatCronJob(jobs[idx]) });
+  }
 });
 
 app.post("/api/crons/:id/run", async (c) => {
   const { id } = c.req.param();
   try {
-    const { stdout } = await exec(`openclaw cron run ${id} --force 2>&1`, { timeout: 10000 });
-    return c.json({ success: true, result: stdout.trim() });
+    const { execSync } = await import("child_process");
+    const scriptPath = path.join(import.meta.dirname || __dirname, "cron-trigger.mjs");
+    const result = execSync(`node ${scriptPath} ${id}`, {
+      timeout: 12000,
+      cwd: path.dirname(scriptPath),
+      encoding: "utf-8",
+    }).trim();
+    const parsed = JSON.parse(result);
+    return c.json(parsed, parsed.success ? 200 : 500);
   } catch (e: any) {
-    return c.json({ error: e.message }, 500);
+    const stderr = e.stderr?.trim() || e.message;
+    return c.json({ success: false, error: stderr }, 500);
   }
 });
 
