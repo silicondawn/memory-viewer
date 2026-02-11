@@ -1321,7 +1321,7 @@ app.post("/api/crons/:id/toggle", async (c) => {
       }),
       signal: AbortSignal.timeout(10000),
     });
-    const result = await resp.json();
+    const result = await resp.json() as any;
     if (result.error) {
       return c.json({ success: false, error: result.error.message }, 500);
     }
@@ -1347,7 +1347,7 @@ app.post("/api/crons/:id/run", async (c) => {
       cwd: path.dirname(scriptPath),
       encoding: "utf-8",
     }).trim();
-    const parsed = JSON.parse(result);
+    const parsed = JSON.parse(result) as any;
     return c.json(parsed, parsed.success ? 200 : 500);
   } catch (e: any) {
     const stderr = e.stderr?.trim() || e.message;
