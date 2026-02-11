@@ -1213,6 +1213,194 @@ app.get("/workspace-assets/*", async (c) => {
 });
 
 // ---------------------------------------------------------------------------
+// Cron API — read OpenClaw cron jobs and run history
+// ---------------------------------------------------------------------------
+const CRON_JOBS_FILE = path.join(os.homedir(), ".openclaw", "cron", "jobs.json");
+const CRON_RUNS_DIR = path.join(os.homedir(), ".openclaw", "cron", "runs");
+
+interface CronJob {
+  id: string;
+  name?: string;
+  enabled: boolean;
+  schedule?: { kind: string; expr?: string; everyMs?: number; at?: string };
+  payload?: { kind: string; text?: string; message?: string };
+  sessionTarget?: string;
+  agentId?: string;
+  wakeMode?: string;
+  state?: { nextRunAtMs?: number; lastRunAtMs?: number; lastStatus?: string };
+  delivery?: { mode?: string };
+}
+
+function readCronJobs(): CronJob[] {
+  try {
+    const data = fs.readFileSync(CRON_JOBS_FILE, "utf-8");
+    const json = JSON.parse(data);
+    return json.jobs || [];
+  } catch {
+    return [];
+  }
+}
+
+function writeCronJobs(jobs: CronJob[]): boolean {
+  try {
+    fs.copyFileSync(CRON_JOBS_FILE, CRON_JOBS_FILE + ".bak");
+    fs.writeFileSync(CRON_JOBS_FILE, JSON.stringify({ version: 1, jobs }, null, 2));
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function readCronRuns(jobId: string): any[] {
+  try {
+    const runFile = path.join(CRON_RUNS_DIR, `${jobId}.jsonl`);
+    const data = fs.readFileSync(runFile, "utf-8");
+    return data.trim().split("\n").filter(Boolean).map(line => {
+      try { return JSON.parse(line); } catch { return null; }
+    }).filter(Boolean).reverse();
+  } catch {
+    return [];
+  }
+}
+
+function formatCronJob(job: CronJob) {
+  let scheduleDisplay = "-";
+  if (job.schedule) {
+    if (job.schedule.kind === "cron" && job.schedule.expr) scheduleDisplay = job.schedule.expr;
+    else if (job.schedule.kind === "every" && job.schedule.everyMs) scheduleDisplay = `every ${Math.round(job.schedule.everyMs / 60000)}m`;
+    else if (job.schedule.kind === "at" && job.schedule.at) scheduleDisplay = `at ${job.schedule.at}`;
+  }
+  return {
+    id: job.id,
+    name: job.name || "Unnamed",
+    enabled: job.enabled !== false,
+    schedule: scheduleDisplay,
+    scheduleRaw: job.schedule,
+    nextRun: job.state?.nextRunAtMs ? new Date(job.state.nextRunAtMs).toISOString() : null,
+    lastRun: job.state?.lastRunAtMs ? new Date(job.state.lastRunAtMs).toISOString() : null,
+    lastStatus: job.state?.lastStatus || null,
+    sessionTarget: job.sessionTarget || job.agentId || "-",
+    wakeMode: job.wakeMode || "next-heartbeat",
+    payloadKind: job.payload?.kind || "-",
+    deliveryMode: job.delivery?.mode || "-",
+  };
+}
+
+app.get("/api/crons", (c) => {
+  const jobs = readCronJobs();
+  return c.json({ crons: jobs.map(formatCronJob) });
+});
+
+app.get("/api/crons/:id/runs", (c) => {
+  const { id } = c.req.param();
+  const runs = readCronRuns(id);
+  return c.json({ runs: runs.slice(0, 30) });
+});
+
+app.post("/api/crons/:id/toggle", async (c) => {
+  const { id } = c.req.param();
+  const { enabled } = await c.req.json();
+  const jobs = readCronJobs();
+  const idx = jobs.findIndex(j => j.id === id);
+  if (idx === -1) return c.json({ error: "Job not found" }, 404);
+  jobs[idx].enabled = enabled;
+  const ok = writeCronJobs(jobs);
+  return c.json({ success: ok, job: formatCronJob(jobs[idx]) });
+});
+
+app.post("/api/crons/:id/run", async (c) => {
+  const { id } = c.req.param();
+  try {
+    const { stdout } = await exec(`openclaw cron run ${id} --force 2>&1`, { timeout: 10000 });
+    return c.json({ success: true, result: stdout.trim() });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+// System Crons API — heartbeat, compaction, pruning, session cleanup
+// ---------------------------------------------------------------------------
+app.get("/api/system-crons", (c) => {
+  try {
+    const configPath = path.join(os.homedir(), ".openclaw", "openclaw.json");
+    const config = JSON.parse(fs.readFileSync(configPath, "utf-8"));
+    const defaults = config.agents?.defaults || {};
+    const agentList = config.agents?.list || [];
+
+    const systemCrons: any[] = [];
+
+    // Heartbeat
+    const hbEvery = defaults.heartbeat?.every || "disabled";
+    systemCrons.push({
+      id: "sys-heartbeat",
+      name: "💓 心跳检测",
+      type: "heartbeat",
+      schedule: hbEvery === "disabled" ? "禁用" : `每 ${hbEvery}`,
+      enabled: hbEvery !== "disabled",
+      description: "定期唤醒 agent 执行 HEARTBEAT.md 检查",
+      agents: agentList.map((a: any) => ({
+        id: a.id,
+        name: a.identity?.name || a.name || a.id,
+        heartbeat: a.heartbeat?.every || hbEvery,
+        enabled: (a.heartbeat?.every || hbEvery) !== "disabled",
+      })),
+    });
+
+    // Compaction
+    const compMode = defaults.compaction?.mode || "off";
+    const flushEnabled = defaults.compaction?.memoryFlush?.enabled || false;
+    const flushThreshold = defaults.compaction?.memoryFlush?.softThresholdTokens;
+    systemCrons.push({
+      id: "sys-compaction",
+      name: "🗜️ 上下文压缩",
+      type: "compaction",
+      schedule: "按需触发",
+      enabled: compMode !== "off",
+      description: `模式: ${compMode}${flushEnabled ? ` | Memory flush: ${flushThreshold ? flushThreshold + " tokens" : "启用"}` : ""}`,
+    });
+
+    // Context Pruning
+    const pruneMode = defaults.contextPruning?.mode || "off";
+    const pruneTTL = defaults.contextPruning?.ttl;
+    systemCrons.push({
+      id: "sys-context-pruning",
+      name: "✂️ 上下文修剪",
+      type: "context-pruning",
+      schedule: pruneTTL ? `TTL ${pruneTTL}` : "按需",
+      enabled: pruneMode !== "off",
+      description: `模式: ${pruneMode}${pruneTTL ? ` | 缓存过期: ${pruneTTL}` : ""}`,
+    });
+
+    // Session cleanup (2026.2.9 feature)
+    systemCrons.push({
+      id: "sys-session-cleanup",
+      name: "🗑️ Session 清理",
+      type: "session-cleanup",
+      schedule: "自动",
+      enabled: true,
+      description: "自动修剪过期 session，防止磁盘占满",
+    });
+
+    // QMD Memory refresh
+    const qmd = config.memory?.qmd;
+    if (qmd && config.memory?.backend === "qmd") {
+      systemCrons.push({
+        id: "sys-qmd-refresh",
+        name: "🧠 QMD 记忆索引",
+        type: "qmd",
+        schedule: qmd.update?.interval ? `每 ${qmd.update.interval}` : "手动",
+        enabled: true,
+        description: `后台刷新: ${qmd.update?.onBoot ? "启动时 + " : ""}${qmd.update?.interval || "手动"}`,
+      });
+    }
+
+    return c.json({ systemCrons });
+  } catch (e: any) {
+    return c.json({ error: e.message }, 500);
+  }
+});
+
+// ---------------------------------------------------------------------------
 // Static file serving
 // ---------------------------------------------------------------------------
 if (fs.existsSync(STATIC_DIR)) {

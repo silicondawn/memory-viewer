@@ -278,6 +278,80 @@ export async function fetchAgentStatus(): Promise<AgentStatus> {
   return r.json();
 }
 
+// ============================================================================
+// Cron API
+// ============================================================================
+
+export interface CronJob {
+  id: string;
+  name: string;
+  enabled: boolean;
+  schedule: string;
+  scheduleRaw: any;
+  nextRun: string | null;
+  lastRun: string | null;
+  lastStatus: string | null;
+  sessionTarget: string;
+  wakeMode: string;
+  payloadKind: string;
+  deliveryMode: string;
+}
+
+export interface CronRun {
+  status: string;
+  startedAt?: string;
+  runAtMs?: number;
+  ts?: number;
+  completedAt?: string;
+  sessionKey?: string;
+  durationMs?: number;
+}
+
+export interface SystemCron {
+  id: string;
+  name: string;
+  type: string;
+  schedule: string;
+  enabled: boolean;
+  description: string;
+  agents?: { id: string; name: string; heartbeat: string; enabled: boolean }[];
+}
+
+export async function fetchSystemCrons(): Promise<SystemCron[]> {
+  const r = await fetch(buildUrl("/api/system-crons"));
+  const data = await r.json();
+  return data.systemCrons || [];
+}
+
+export async function fetchCronJobs(): Promise<CronJob[]> {
+  const r = await fetch(buildUrl("/api/crons"));
+  const data = await r.json();
+  return data.crons || [];
+}
+
+export async function fetchCronRuns(jobId: string): Promise<CronRun[]> {
+  const r = await fetch(buildUrl(`/api/crons/${jobId}/runs`));
+  const data = await r.json();
+  return data.runs || [];
+}
+
+export async function toggleCronJob(jobId: string, enabled: boolean): Promise<{ success: boolean }> {
+  const r = await fetch(buildUrl(`/api/crons/${jobId}/toggle`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ enabled }),
+  });
+  return r.json();
+}
+
+export async function runCronJob(jobId: string): Promise<{ success: boolean; result?: string; error?: string }> {
+  const r = await fetch(buildUrl(`/api/crons/${jobId}/run`), {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+  });
+  return r.json();
+}
+
 export interface EmbeddingSettings {
   enabled: boolean;
   apiUrl: string;

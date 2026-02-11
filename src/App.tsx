@@ -16,7 +16,8 @@ import { useAgents } from "./hooks/useAgents";
 import { AgentStatusPage } from "./components/AgentStatus";
 import { SettingsPage } from "./components/SettingsPage";
 import { Tags } from "./components/Tags";
-import { BookOpen, X, List, MagnifyingGlass, Sun, Moon, Eye, EyeSlash, Translate, ShareNetwork, CaretDown, CaretUp, ArrowsClockwise, Gear, Monitor, PuzzlePiece, CaretRight, Calendar, SquaresFour, Power, Clock, Tag, Robot } from "@phosphor-icons/react";
+import { CronManager } from "./components/CronManager";
+import { BookOpen, X, List, MagnifyingGlass, Sun, Moon, Eye, EyeSlash, Translate, ShareNetwork, CaretDown, CaretUp, ArrowsClockwise, Gear, Monitor, PuzzlePiece, CaretRight, Calendar, SquaresFour, Power, Clock, Tag, Robot, Timer } from "@phosphor-icons/react";
 import { useSyncExternalStore } from "react";
 import { pluginRegistry } from "./plugins/registry";
 import { useZoom } from "./hooks/useZoom";
@@ -28,7 +29,7 @@ export default function App() {
   const [files, setFiles] = useState<FileNode[]>([]);
   const [skills, setSkills] = useState<SkillInfo[]>([]);
   const [activeFile, setActiveFile] = useState("");
-  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status" | "skills" | "timeline" | "tags" | "settings">("dashboard");
+  const [view, setView] = useState<"dashboard" | "file" | "connections" | "changelog" | "agent-status" | "skills" | "timeline" | "tags" | "cron" | "settings">("dashboard");
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [refreshKey, setRefreshKey] = useState(0);
@@ -127,6 +128,7 @@ export default function App() {
       if (hash === "#/skills") { setView("skills"); return; }
       if (hash === "#/timeline") { setView("timeline"); return; }
       if (hash === "#/tags") { setView("tags"); return; }
+      if (hash === "#/cron") { setView("cron"); return; }
       if (hash === "#/settings") { setView("settings"); return; }
     };
     readHash();
@@ -418,6 +420,17 @@ export default function App() {
               {t("sidebar.tags") || "Tags"}
             </button>
             <button
+              onClick={() => { setView("cron"); setSidebarOpen(false); window.history.pushState(null, "", "#/cron"); }}
+              className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
+              style={{
+                color: view === "cron" ? "var(--link)" : "var(--text-secondary)",
+                background: view === "cron" ? "var(--bg-active)" : undefined,
+              }}
+            >
+              <Timer className="w-4 h-4 text-indigo-400" />
+              {t("sidebar.cron")}
+            </button>
+            <button
               onClick={goHome}
               className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
               style={{
@@ -530,7 +543,7 @@ export default function App() {
             <List className="w-6 h-6" />
           </button>
           <span className="text-sm font-medium truncate">
-            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : view === "agent-status" ? t("sidebar.agentConfig") : view === "timeline" ? t("timeline.title") : view === "tags" ? t("tags.title") : view === "settings" ? t("settings.title") : t("dashboard.title")}
+            {view === "file" ? activeFile : view === "changelog" ? t("changelog.title") : view === "connections" ? t("connections.title") : view === "agent-status" ? t("sidebar.agentConfig") : view === "timeline" ? t("timeline.title") : view === "tags" ? t("tags.title") : view === "cron" ? t("cron.title") : view === "settings" ? t("settings.title") : t("dashboard.title")}
           </span>
           <button onClick={() => window.location.reload()} className="ml-auto p-1" style={{ color: "var(--text-muted)" }} title="Refresh">
             <ArrowsClockwise className="w-5 h-5" />
@@ -574,6 +587,8 @@ export default function App() {
             <div className="h-full overflow-auto">
               <Tags onOpenFile={openFile} />
             </div>
+          ) : view === "cron" ? (
+            <CronManager />
           ) : view === "settings" ? (
             <SettingsPage onBack={goHome} />
           ) : view === "dashboard" ? (
