@@ -36,6 +36,7 @@ export default function App() {
   const [botSelectorOpen, setBotSelectorOpen] = useState(false);
   const [agentSelectorOpen, setAgentSelectorOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [quickAccessOpen, setQuickAccessOpen] = useState(() => localStorage.getItem("memory-viewer-quickaccess-open") === "true");
   const [teslaMode, setTeslaMode] = useState(() => localStorage.getItem("memory-viewer-tesla") === "true");
   const { zoom, setZoom, ZOOM_LEVELS } = useZoom();
   const { current: currentMdTheme, setTheme: setMdTheme, themes: mdThemes } = useMarkdownTheme();
@@ -380,12 +381,22 @@ export default function App() {
           </div>
         )}
 
-        {/* Quick Access */}
-        <div className="mx-2 mt-3">
-          <div className="text-[10px] font-semibold uppercase tracking-wider px-1 mb-1" style={{ color: "var(--text-muted)" }}>
+        {/* Quick Access - Collapsible */}
+        <div className="mx-2 mt-2">
+          <button
+            onClick={() => {
+              const newState = !quickAccessOpen;
+              setQuickAccessOpen(newState);
+              localStorage.setItem("memory-viewer-quickaccess-open", String(newState));
+            }}
+            className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors hover:text-blue-400"
+            style={{ color: "var(--text-muted)" }}
+          >
             {t("sidebar.quickAccess") || "Quick Access"}
-          </div>
-          <div className="flex flex-col gap-0.5">
+            {quickAccessOpen ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}
+          </button>
+          {quickAccessOpen && (
+          <div className="flex flex-col">
             <button
               onClick={() => openFile(todayFile)}
               className="flex items-center gap-2 px-2 py-1.5 rounded-md text-sm transition-colors hover:bg-white/5"
@@ -467,6 +478,7 @@ export default function App() {
               {t("settings.title")}
             </button>
           </div>
+          )}
         </div>
 
         {/* File Browser - Main content area */}

@@ -1,6 +1,6 @@
 import { useState, useMemo, useEffect, useCallback } from "react";
 import type { FileNode } from "../api";
-import { CaretDown, CaretRight, Folder, FileText, Brain, Dna, Robot, User, Wrench, ListChecks, Heartbeat, IdentificationCard, Gear, Calendar, Clock } from "@phosphor-icons/react";
+import { CaretDown, CaretRight, Folder, FileText, Brain, Dna, Robot, User, Wrench, ListChecks, Heartbeat, IdentificationCard, Gear, Calendar, Clock, CaretUp } from "@phosphor-icons/react";
 import { useLocale } from "../hooks/useLocale";
 
 /** Well-known bot config files shown in the top section */
@@ -38,6 +38,12 @@ function getDailyNoteLabel(path: string): { label: string; isToday: boolean; isY
 
 /** Local storage key for collapsed state */
 const COLLAPSED_KEY = "memory-viewer-collapsed";
+const SECTIONS_KEY = "memory-viewer-sections";
+
+interface SectionState {
+  coreFiles: boolean;
+  files: boolean;
+}
 
 function loadCollapsedState(): Set<string> {
   try {
@@ -56,6 +62,23 @@ function saveCollapsedState(collapsed: Set<string>) {
   }
 }
 
+function loadSectionState(): SectionState {
+  try {
+    const stored = localStorage.getItem(SECTIONS_KEY);
+    return stored ? JSON.parse(stored) : { coreFiles: false, files: true };
+  } catch {
+    return { coreFiles: false, files: true };
+  }
+}
+
+function saveSectionState(state: SectionState) {
+  try {
+    localStorage.setItem(SECTIONS_KEY, JSON.stringify(state));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
 interface FileTreeProps {
   nodes: FileNode[];
   activeFile: string;
@@ -65,11 +88,21 @@ interface FileTreeProps {
 export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
   const { t } = useLocale();
   const [collapsed, setCollapsed] = useState<Set<string>>(() => loadCollapsedState());
+  const [sections, setSections] = useState<SectionState>(() => loadSectionState());
   
   // Persist collapsed state
   useEffect(() => {
     saveCollapsedState(collapsed);
   }, [collapsed]);
+  
+  // Persist section state
+  useEffect(() => {
+    saveSectionState(sections);
+  }, [sections]);
+  
+  const toggleSection = (key: keyof SectionState) => {
+    setSections(prev => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const toggleCollapsed = useCallback((path: string) => {
     setCollapsed(prev => {
@@ -108,27 +141,45 @@ export function FileTree({ nodes, activeFile, onSelect }: FileTreeProps) {
 
   return (
     <nav className="text-sm" aria-label="File tree">
-      {/* Bot Config Files */}
+      {/* Bot Config Files - Collapsible */}
       {botFiles.length > 0 && (
-        <div className="mb-3">
-          <div className="sidebar-section-title px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider">
+        <div className="mb-2">
+          <button
+            onClick={() => toggleSection("coreFiles")}
+            className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors hover:text-blue-400"
+            style={{ color: "var(--text-muted)" }}
+          >
             {t("sidebar.coreFiles") || "Core Files"}
-          </div>
-          {botFiles.map((node) => (
-            <TreeNode key={node.path} node={node} activeFile={activeFile} onSelect={onSelect} depth={0} collapsed={collapsed} onToggle={toggleCollapsed} />
-          ))}
+            {sections.coreFiles ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}
+          </button>
+          {sections.coreFiles && (
+            <div className="flex flex-col">
+              {botFiles.map((node) => (
+                <TreeNode key={node.path} node={node} activeFile={activeFile} onSelect={onSelect} depth={0} collapsed={collapsed} onToggle={toggleCollapsed} />
+              ))}
+            </div>
+          )}
         </div>
       )}
       
-      {/* Files */}
+      {/* Files - Collapsible */}
       {otherNodes.length > 0 && (
         <div>
-          <div className="sidebar-section-title px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider">
+          <button
+            onClick={() => toggleSection("files")}
+            className="w-full flex items-center justify-between px-2 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition-colors hover:text-blue-400"
+            style={{ color: "var(--text-muted)" }}
+          >
             {t("sidebar.files")}
-          </div>
-          {otherNodes.map((node) => (
-            <TreeNode key={node.path} node={node} activeFile={activeFile} onSelect={onSelect} depth={0} collapsed={collapsed} onToggle={toggleCollapsed} />
-          ))}
+            {sections.files ? <CaretDown className="w-3 h-3" /> : <CaretRight className="w-3 h-3" />}
+          </button>
+          {sections.files && (
+            <div className="flex flex-col">
+              {otherNodes.map((node) => (
+                <TreeNode key={node.path} node={node} activeFile={activeFile} onSelect={onSelect} depth={0} collapsed={collapsed} onToggle={toggleCollapsed} />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </nav>
@@ -145,8 +196,8 @@ function TreeNode({ node, activeFile, onSelect, depth, collapsed, onToggle }: {
 }) {
   const indent = depth * 12 + 8;
   const isCollapsed = collapsed.has(node.path);
-  // Default: depth 0 directories are expanded, deeper ones collapsed (unless explicitly toggled)
-  const isOpen = collapsed.has(node.path) ? false : (depth === 0 || !collapsed.has(`__default_collapsed_${node.path}`));
+  // Default: all directories are collapsed unless explicitly expanded
+  const isOpen = !collapsed.has(node.path);
 
   if (node.type === "dir") {
     return (
